@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Sender & Receiver</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background: #f3f3f3;
+      padding: 20px;
+    }
+    .box {
+      background: white;
+      padding: 20px;
+      margin: 20px auto;
+      width: 300px;
+      border-radius: 8px;
+      box-shadow: 0 0 5px #aaa;
+    }
+    input, button {
+      margin: 10px 0;
+      padding: 8px;
+      width: 90%;
+    }
+    .file-list {
+      margin-top: 10px;
+      text-align: left;
+    }
+    a {
+      color: blue;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>📂 File Sender & Receiver</h1>
+
+  <!-- Sender Section -->
+  <div class="box">
+    <h2>Sender</h2>
+    <input type="text" id="senderId" placeholder="Enter Receiver ID"><br>
+    <input type="file" id="fileInput"><br>
+    <button onclick="sendFile()">Send File</button>
+    <p id="sendStatus"></p>
+  </div>
+
+  <!-- Receiver Section -->
+  <div class="box">
+    <h2>Receiver</h2>
+    <input type="text" id="receiverId" placeholder="Enter Receiver ID"><br>
+    <button onclick="receiveFiles()">Login</button>
+    <div id="fileList" class="file-list"></div>
+  </div>
+
+  <script>
+    // Save file to localStorage with receiverId
+    function sendFile() {
+      const receiverId = document.getElementById('senderId').value.trim();
+      const fileInput = document.getElementById('fileInput');
+      const status = document.getElementById('sendStatus');
+
+      if (!receiverId || fileInput.files.length === 0) {
+        status.innerText = "⚠️ Enter ID and choose file.";
+        return;
+      }
+
+      const file = fileInput.files[0];
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const fileData = {
+          name: file.name,
+          type: file.type,
+          data: e.target.result
+        };
+        let existing = JSON.parse(localStorage.getItem(receiverId) || "[]");
+        existing.push(fileData);
+        localStorage.setItem(receiverId, JSON.stringify(existing));
+        status.innerText = "✅ File sent to Receiver ID: " + receiverId;
+        fileInput.value = "";
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // Retrieve files from localStorage
+    function receiveFiles() {
+      const receiverId = document.getElementById('receiverId').value.trim();
+      const fileList = document.getElementById('fileList');
+      fileList.innerHTML = "";
+
+      if (!receiverId) {
+        fileList.innerHTML = "<p>⚠️ Enter Receiver ID.</p>";
+        return;
+      }
+
+      const files = JSON.parse(localStorage.getItem(receiverId) || "[]");
+      if (files.length === 0) {
+        fileList.innerHTML = "<p>No files found for this ID.</p>";
+        return;
+      }
+
+      files.forEach((file, index) => {
+        const link = document.createElement("a");
+        link.href = file.data;
+        link.download = file.name;
+        link.innerText = "⬇️ Download " + file.name;
+        fileList.appendChild(link);
+        fileList.appendChild(document.createElement("br"));
+      });
+    }
+  </script>
+
+</body>
+</html>
