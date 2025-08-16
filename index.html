@@ -1,129 +1,285 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Local File Share</title>
+  <meta charset="UTF-8" />
+  <title>Universal File Sender & Receiver</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f0f2f5;
-      text-align: center;
-      padding: 20px;
+    :root{--bg1:#6ee7f9;--bg2:#a7b7ff;--card:#ffffff;--txt:#1f2937;--pri:#2563eb;--priH:#1d4ed8;--ok:#16a34a;--warn:#d97706;--err:#dc2626}
+    body{
+      margin:0;padding:24px;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
+      color:var(--txt);
+      background:linear-gradient(135deg,var(--bg1),var(--bg2)) fixed;
     }
-    .box {
-      background: white;
-      padding: 20px;
-      margin: 20px auto;
-      width: 350px;
-      border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.2);
+    .app{max-width:980px;margin:0 auto}
+    h1{margin:0 0 8px 0}
+    .sub{opacity:.85;margin-bottom:24px}
+    .grid{display:grid;grid-template-columns:1fr;gap:18px}
+    @media(min-width:900px){.grid{grid-template-columns:1fr 1fr}}
+    .card{
+      background:var(--card);border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,.12);
+      padding:20px 18px 18px
     }
-    input, button {
-      margin: 10px 0;
-      padding: 10px;
-      width: 90%;
-      border-radius: 5px;
-      border: 1px solid #ccc;
+    .card h2{margin:0 0 12px}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .input, select{
+      flex:1;min-width:200px;padding:12px 14px;border:1px solid #e5e7eb;border-radius:10px;font-size:15px
     }
-    button {
-      background: #007BFF;
-      color: white;
-      border: none;
-      font-weight: bold;
-      cursor: pointer;
+    .btn{
+      padding:11px 14px;border:0;border-radius:10px;background:var(--pri);color:#fff;font-weight:600;cursor:pointer
     }
-    button:hover {
-      background: #0056b3;
-    }
-    .file-list {
-      margin-top: 15px;
-      text-align: left;
-    }
-    a {
-      color: green;
-      text-decoration: none;
-      font-weight: bold;
-    }
+    .btn:hover{background:var(--priH)}
+    .btn.ghost{background:#eef2ff;color:#111}
+    .muted{font-size:13px;opacity:.8}
+    .ok{color:var(--ok)} .warn{color:var(--warn)} .err{color:var(--err)}
+    .list{margin-top:12px;border-top:1px dashed #e5e7eb;padding-top:10px;max-height:300px;overflow:auto}
+    .item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid #f3f4f6}
+    .name{font-weight:600}
+    .meta{font-size:12px;opacity:.75}
+    .dl{padding:8px 10px;border-radius:8px;background:#10b981;color:#fff;text-decoration:none}
+    .progress{height:10px;background:#f3f4f6;border-radius:999px;overflow:hidden;margin-top:10px}
+    .bar{height:10px;width:0;background:linear-gradient(90deg,#60a5fa,#34d399)}
+    .tag{background:#f1f5f9;border-radius:999px;padding:4px 10px;font-size:12px}
+    .hr{height:1px;background:#e5e7eb;margin:14px 0}
+    .tips{font-size:12px;opacity:.8;line-height:1.5}
+    .pill{display:inline-flex;align-items:center;gap:6px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:999px;padding:6px 10px}
+    .copy{cursor:pointer;padding:6px 10px;border-radius:8px;border:1px solid #e5e7eb;background:#fff}
   </style>
 </head>
 <body>
+  <div class="app">
+    <h1>📦 File Sender & Receiver</h1>
+    <div class="sub">एक ही साइट link जहाँ भी खोले — किसी भी PC/Phone पर — ID के ज़रिये files दिखें और download हों. Cloud storage से permanent. ✅</div>
 
-  <h1>📂 Local File Sender & Receiver</h1>
+    <div class="grid">
+      <!-- Sender -->
+      <div class="card">
+        <h2>Sender</h2>
+        <div class="row">
+          <input id="senderId" class="input" placeholder="Receiver ID लिखें (e.g. 728913 या team-alpha)" />
+          <button id="genId" class="btn ghost" title="Random ID">Generate ID</button>
+          <button id="copyId" class="btn ghost" title="Copy ID">Copy ID</button>
+        </div>
 
-  <!-- Sender Section -->
-  <div class="box">
-    <h2>Sender</h2>
-    <input type="text" id="senderId" placeholder="Enter Receiver ID"><br>
-    <input type="file" id="fileInput"><br>
-    <button onclick="sendFile()">Send File</button>
-    <p id="sendStatus"></p>
+        <div class="row">
+          <input id="fileInput" type="file" class="input" />
+        </div>
+        <div class="row">
+          <select id="expires" class="input">
+            <option value="never">Expiry: Never</option>
+            <option value="7d">Expiry: 7 days</option>
+            <option value="24h">Expiry: 24 hours</option>
+          </select>
+          <button id="sendBtn" class="btn">Send File</button>
+        </div>
+
+        <div id="status" class="muted"></div>
+        <div class="progress" style="display:none" id="progWrap"><div id="progBar" class="bar"></div></div>
+        <div class="tips">
+          Tip: वही ID Receiver को दे दो. वही ID हर device पर डालकर files दिखेंगी.  
+          Max recommended size: ~50–100MB (browser/mobile limitation पर depend करता है).
+        </div>
+      </div>
+
+      <!-- Receiver -->
+      <div class="card">
+        <h2>Receiver</h2>
+        <div class="row">
+          <input id="receiverId" class="input" placeholder="Receiver ID डालें" />
+          <button id="loginBtn" class="btn">Login</button>
+          <label class="pill"><input type="checkbox" id="live" checked /> Live updates</label>
+        </div>
+        <div id="rxNote" class="muted"></div>
+        <div id="fileList" class="list"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>How it works (short)</h3>
+      <div class="tips">
+        Files Firebase Storage में upload होती हैं. उनके download links Realtime Database में आपकी ID की path पर store होते हैं.
+        Receiver किसी भी device से same ID डालकर list देख सकता/सकती है. Refresh या device change पर भी data रहता है.
+      </div>
+    </div>
   </div>
 
-  <!-- Receiver Section -->
-  <div class="box">
-    <h2>Receiver</h2>
-    <input type="text" id="receiverId" placeholder="Enter Receiver ID"><br>
-    <button onclick="receiveFiles()">Login</button>
-    <div id="fileList" class="file-list"></div>
-  </div>
+  <!-- Firebase (Compat SDKs for simplicity) -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
 
   <script>
-    // Save file to localStorage
-    function sendFile() {
-      const receiverId = document.getElementById('senderId').value.trim();
-      const fileInput = document.getElementById('fileInput');
-      const status = document.getElementById('sendStatus');
+    // 🔧 Put YOUR Firebase config here (using the one you shared, with fixes)
+    const firebaseConfig = {
+      apiKey: "AIzaSyD_h6xku4yrCgSUwk1bllmu8D16yB5MHNY",
+      authDomain: "sender-c0add.firebaseapp.com",
+      databaseURL: "https://sender-c0add-default-rtdb.firebaseio.com",
+      projectId: "sender-c0add",
+      storageBucket: "sender-c0add.appspot.com", // IMPORTANT: .appspot.com
+      messagingSenderId: "319016706425",
+      appId: "1:319016706425:web:b1f28312da7d9c6ea64fa8"
+    };
 
-      if (!receiverId || fileInput.files.length === 0) {
-        status.innerText = "⚠️ Enter ID and choose file.";
+    // Init
+    const app = firebase.initializeApp(firebaseConfig);
+    const db  = firebase.database();
+    const st  = firebase.storage();
+
+    // UI refs
+    const senderId  = document.getElementById('senderId');
+    const genIdBtn  = document.getElementById('genId');
+    const copyIdBtn = document.getElementById('copyId');
+    const fileInput = document.getElementById('fileInput');
+    const sendBtn   = document.getElementById('sendBtn');
+    const statusEl  = document.getElementById('status');
+    const progWrap  = document.getElementById('progWrap');
+    const progBar   = document.getElementById('progBar');
+    const expires   = document.getElementById('expires');
+
+    const receiverId= document.getElementById('receiverId');
+    const loginBtn  = document.getElementById('loginBtn');
+    const fileList  = document.getElementById('fileList');
+    const rxNote    = document.getElementById('rxNote');
+    const liveChk   = document.getElementById('live');
+
+    // Helpers
+    const fmt = (n)=> new Intl.NumberFormat().format(n);
+    function humanSize(bytes){
+      const u=['B','KB','MB','GB','TB']; let i=0, v=bytes||0;
+      while(v>=1024 && i<u.length-1){v/=1024;i++}
+      return `${v.toFixed(v<10&&i>0?2:0)} ${u[i]}`;
+    }
+    function randId(){
+      const part = Math.random().toString(36).slice(2,7);
+      const num  = Math.floor(100000 + Math.random()*900000);
+      return `${num}-${part}`;
+    }
+    function show(msg, cls=''){ statusEl.innerHTML=`<span class="${cls}">${msg}</span>` }
+
+    genIdBtn.onclick = ()=> senderId.value = randId();
+    copyIdBtn.onclick = async ()=>{
+      if(!senderId.value.trim()){ show('पहले कोई ID लिखो या Generate करो.', 'warn'); return; }
+      await navigator.clipboard.writeText(senderId.value.trim());
+      show('ID copied ✅', 'ok');
+    };
+
+    // Upload
+    sendBtn.onclick = async ()=>{
+      const id = (senderId.value||'').trim();
+      const f  = fileInput.files[0];
+      if(!id){ show('Receiver ID डालो.','warn'); return; }
+      if(!f){ show('कृपया कोई file चुनो.','warn'); return; }
+
+      // Basic size guard (optional)
+      const MAX = 1024*1024*250; // ~250MB soft cap
+      if(f.size > MAX){ show(`File बहुत बड़ी है (${humanSize(f.size)}). कोशिश करो ${humanSize(MAX)} तक.`, 'err'); return; }
+
+      // Expiry calculation
+      let ttl = null;
+      const now = Date.now();
+      if(expires.value === '7d') ttl = now + 7*24*60*60*1000;
+      if(expires.value === '24h') ttl = now + 24*60*60*1000;
+
+      try{
+        const path = `${encodeURIComponent(id)}/${Date.now()}-${f.name}`;
+        const ref  = st.ref(path);
+        const task = ref.put(f);
+
+        progWrap.style.display='block';
+        progBar.style.width='0';
+
+        task.on('state_changed', snap=>{
+          const pct = (snap.bytesTransferred / snap.totalBytes) * 100;
+          progBar.style.width = pct.toFixed(2)+'%';
+        }, err=>{
+          show('Upload error: '+err.message, 'err');
+          progWrap.style.display='none';
+        }, async ()=>{
+          const url = await task.snapshot.ref.getDownloadURL();
+          const meta = {
+            name: f.name,
+            size: f.size,
+            type: f.type || 'file',
+            url,
+            path,
+            ts: Date.now(),
+            ttl: ttl || null
+          };
+          await db.ref(`files/${encodeURIComponent(id)}`).push(meta);
+          show(`✅ Uploaded & saved for ID: <b>${id}</b>`, 'ok');
+          fileInput.value = '';
+          setTimeout(()=>{ progWrap.style.display='none'; }, 400);
+        });
+
+      }catch(e){
+        show('कुछ गड़बड़ है: '+e.message, 'err');
+        progWrap.style.display='none';
+      }
+    };
+
+    // Receiver listing
+    let unsub = null;
+    function renderList(id, snap){
+      fileList.innerHTML = '';
+      if(!snap || !snap.exists()){
+        fileList.innerHTML = '<div class="muted">No files for this ID (yet).</div>';
+        return;
+      }
+      const data = snap.val();
+      // Turn into array
+      const items = Object.entries(data).map(([key,val])=>({key,...val}));
+      // Filter expired if ttl set
+      const now = Date.now();
+      const filtered = items.filter(it => !it.ttl || it.ttl > now);
+      // Newest first
+      filtered.sort((a,b)=> b.ts - a.ts);
+
+      if(filtered.length===0){
+        fileList.innerHTML = '<div class="muted">No files (maybe expired).</div>';
         return;
       }
 
-      const file = fileInput.files[0];
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        const fileData = {
-          name: file.name,
-          data: e.target.result
-        };
-
-        let existing = JSON.parse(localStorage.getItem(receiverId) || "[]");
-        existing.push(fileData);
-        localStorage.setItem(receiverId, JSON.stringify(existing));
-
-        status.innerText = "✅ File saved locally for Receiver ID: " + receiverId;
-        fileInput.value = "";
-      };
-      reader.readAsDataURL(file);
+      for(const it of filtered){
+        const row = document.createElement('div');
+        row.className='item';
+        row.innerHTML = `
+          <div>
+            <div class="name">${it.name}</div>
+            <div class="meta">${humanSize(it.size)} • ${new Date(it.ts).toLocaleString()} ${it.ttl?`• Expires: ${new Date(it.ttl).toLocaleString()}`:''}</div>
+          </div>
+          <div class="row" style="gap:8px">
+            <a class="dl" href="${it.url}" download="${it.name}">Download</a>
+          </div>
+        `;
+        fileList.appendChild(row);
+      }
     }
 
-    // Retrieve files from localStorage
-    function receiveFiles() {
-      const receiverId = document.getElementById('receiverId').value.trim();
-      const fileList = document.getElementById('fileList');
-      fileList.innerHTML = "";
-
-      if (!receiverId) {
-        fileList.innerHTML = "<p>⚠️ Enter Receiver ID.</p>";
-        return;
-      }
-
-      const files = JSON.parse(localStorage.getItem(receiverId) || "[]");
-      if (files.length === 0) {
-        fileList.innerHTML = "<p>No files found for this ID.</p>";
-        return;
-      }
-
-      files.forEach((file) => {
-        const link = document.createElement("a");
-        link.href = file.data;
-        link.download = file.name;
-        link.innerText = "⬇️ Download " + file.name;
-        fileList.appendChild(link);
-        fileList.appendChild(document.createElement("br"));
-      });
+    function startLive(id){
+      const ref = db.ref(`files/${encodeURIComponent(id)}`);
+      if(unsub) unsub(); // cleanup old
+      ref.off();
+      const cb = snap => renderList(id, snap);
+      ref.on('value', cb);
+      unsub = ()=> ref.off('value', cb);
     }
+    function oneTime(id){
+      if(unsub) { unsub(); unsub=null; }
+      const ref = db.ref(`files/${encodeURIComponent(id)}`);
+      ref.once('value').then(snap=>renderList(id,snap));
+    }
+
+    loginBtn.onclick = ()=>{
+      const id = (receiverId.value||'').trim();
+      if(!id){ rxNote.innerHTML = '<span class="warn">Receiver ID डालें.</span>'; return; }
+      rxNote.innerHTML = `<span class="ok">Logged into ID: <b>${id}</b></span>`;
+      if(liveChk.checked) startLive(id); else oneTime(id);
+    };
+    liveChk.onchange = ()=>{
+      const id = (receiverId.value||'').trim();
+      if(!id) return;
+      if(liveChk.checked) startLive(id); else oneTime(id);
+    };
   </script>
-
 </body>
 </html>
