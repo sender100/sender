@@ -2,33 +2,46 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Sender & Receiver</title>
+  <title>File Share App</title>
   <style>
     body {
       font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
       text-align: center;
-      background: #f3f3f3;
-      padding: 20px;
+      padding: 30px;
+      color: #333;
     }
     .box {
       background: white;
       padding: 20px;
       margin: 20px auto;
-      width: 300px;
-      border-radius: 8px;
-      box-shadow: 0 0 5px #aaa;
+      width: 350px;
+      border-radius: 12px;
+      box-shadow: 0 5px 20px rgba(0,0,0,0.2);
     }
     input, button {
       margin: 10px 0;
-      padding: 8px;
+      padding: 10px;
       width: 90%;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+    button {
+      background: #4CAF50;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      border: none;
+    }
+    button:hover {
+      background: #45a049;
     }
     .file-list {
-      margin-top: 10px;
+      margin-top: 15px;
       text-align: left;
     }
     a {
-      color: blue;
+      color: #2196F3;
       text-decoration: none;
     }
   </style>
@@ -54,8 +67,29 @@
     <div id="fileList" class="file-list"></div>
   </div>
 
+  <!-- Firebase Scripts -->
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-storage.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database.js"></script>
+
   <script>
-    // Save file to localStorage with receiverId
+    // ✅ Replace this with your Firebase config
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_PROJECT_ID.appspot.com",
+      messagingSenderId: "SENDER_ID",
+      appId: "APP_ID",
+      databaseURL: "https://YOUR_PROJECT_ID.firebaseio.com"
+    };
+
+    // Initialize Firebase
+    const app = firebase.initializeApp(firebaseConfig);
+    const storage = firebase.storage();
+    const db = firebase.database();
+
+    // Send File
     function sendFile() {
       const receiverId = document.getElementById('senderId').value.trim();
       const fileInput = document.getElementById('fileInput');
@@ -67,23 +101,21 @@
       }
 
       const file = fileInput.files[0];
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        const fileData = {
-          name: file.name,
-          type: file.type,
-          data: e.target.result
-        };
-        let existing = JSON.parse(localStorage.getItem(receiverId) || "[]");
-        existing.push(fileData);
-        localStorage.setItem(receiverId, JSON.stringify(existing));
-        status.innerText = "✅ File sent to Receiver ID: " + receiverId;
-        fileInput.value = "";
-      };
-      reader.readAsDataURL(file);
+      const storageRef = storage.ref(receiverId + "/" + Date.now() + "-" + file.name);
+
+      storageRef.put(file).then(snapshot => {
+        snapshot.ref.getDownloadURL().then(url => {
+          db.ref("files/" + receiverId).push({
+            name: file.name,
+            url: url
+          });
+          status.innerText = "✅ File uploaded for Receiver ID: " + receiverId;
+          fileInput.value = "";
+        });
+      });
     }
 
-    // Retrieve files from localStorage
+    // Receive Files
     function receiveFiles() {
       const receiverId = document.getElementById('receiverId').value.trim();
       const fileList = document.getElementById('fileList');
@@ -94,22 +126,23 @@
         return;
       }
 
-      const files = JSON.parse(localStorage.getItem(receiverId) || "[]");
-      if (files.length === 0) {
-        fileList.innerHTML = "<p>No files found for this ID.</p>";
-        return;
-      }
+      db.ref("files/" + receiverId).once("value", snapshot => {
+        if (!snapshot.exists()) {
+          fileList.innerHTML = "<p>No files found for this ID.</p>";
+          return;
+        }
 
-      files.forEach((file, index) => {
-        const link = document.createElement("a");
-        link.href = file.data;
-        link.download = file.name;
-        link.innerText = "⬇️ Download " + file.name;
-        fileList.appendChild(link);
-        fileList.appendChild(document.createElement("br"));
+        snapshot.forEach(child => {
+          const file = child.val();
+          const link = document.createElement("a");
+          link.href = file.url;
+          link.download = file.name;
+          link.innerText = "⬇️ Download " + file.name;
+          fileList.appendChild(link);
+          fileList.appendChild(document.createElement("br"));
+        });
       });
     }
   </script>
-
 </body>
 </html>
