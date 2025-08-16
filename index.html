@@ -2,53 +2,53 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>File Share App</title>
+  <title>Local File Share</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+      background: #f0f2f5;
       text-align: center;
-      padding: 30px;
-      color: #333;
+      padding: 20px;
     }
     .box {
       background: white;
       padding: 20px;
       margin: 20px auto;
       width: 350px;
-      border-radius: 12px;
-      box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.2);
     }
     input, button {
       margin: 10px 0;
       padding: 10px;
       width: 90%;
+      border-radius: 5px;
       border: 1px solid #ccc;
-      border-radius: 6px;
     }
     button {
-      background: #4CAF50;
+      background: #007BFF;
       color: white;
+      border: none;
       font-weight: bold;
       cursor: pointer;
-      border: none;
     }
     button:hover {
-      background: #45a049;
+      background: #0056b3;
     }
     .file-list {
       margin-top: 15px;
       text-align: left;
     }
     a {
-      color: #2196F3;
+      color: green;
       text-decoration: none;
+      font-weight: bold;
     }
   </style>
 </head>
 <body>
 
-  <h1>📂 File Sender & Receiver</h1>
+  <h1>📂 Local File Sender & Receiver</h1>
 
   <!-- Sender Section -->
   <div class="box">
@@ -67,29 +67,8 @@
     <div id="fileList" class="file-list"></div>
   </div>
 
-  <!-- Firebase Scripts -->
-  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-storage.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database.js"></script>
-
   <script>
-    // ✅ Your Firebase Config (corrected)
-    const firebaseConfig = {
-      apiKey: "AIzaSyD_h6xku4yrCgSUwk1bllmu8D16yB5MHNY",
-      authDomain: "sender-c0add.firebaseapp.com",
-      databaseURL: "https://sender-c0add-default-rtdb.firebaseio.com",
-      projectId: "sender-c0add",
-      storageBucket: "sender-c0add.appspot.com",
-      messagingSenderId: "319016706425",
-      appId: "1:319016706425:web:b1f28312da7d9c6ea64fa8"
-    };
-
-    // Initialize Firebase
-    const app = firebase.initializeApp(firebaseConfig);
-    const storage = firebase.storage();
-    const db = firebase.database();
-
-    // Send File
+    // Save file to localStorage
     function sendFile() {
       const receiverId = document.getElementById('senderId').value.trim();
       const fileInput = document.getElementById('fileInput');
@@ -101,21 +80,24 @@
       }
 
       const file = fileInput.files[0];
-      const storageRef = storage.ref(receiverId + "/" + Date.now() + "-" + file.name);
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const fileData = {
+          name: file.name,
+          data: e.target.result
+        };
 
-      storageRef.put(file).then(snapshot => {
-        snapshot.ref.getDownloadURL().then(url => {
-          db.ref("files/" + receiverId).push({
-            name: file.name,
-            url: url
-          });
-          status.innerText = "✅ File uploaded for Receiver ID: " + receiverId;
-          fileInput.value = "";
-        });
-      });
+        let existing = JSON.parse(localStorage.getItem(receiverId) || "[]");
+        existing.push(fileData);
+        localStorage.setItem(receiverId, JSON.stringify(existing));
+
+        status.innerText = "✅ File saved locally for Receiver ID: " + receiverId;
+        fileInput.value = "";
+      };
+      reader.readAsDataURL(file);
     }
 
-    // Receive Files
+    // Retrieve files from localStorage
     function receiveFiles() {
       const receiverId = document.getElementById('receiverId').value.trim();
       const fileList = document.getElementById('fileList');
@@ -126,23 +108,22 @@
         return;
       }
 
-      db.ref("files/" + receiverId).once("value", snapshot => {
-        if (!snapshot.exists()) {
-          fileList.innerHTML = "<p>No files found for this ID.</p>";
-          return;
-        }
+      const files = JSON.parse(localStorage.getItem(receiverId) || "[]");
+      if (files.length === 0) {
+        fileList.innerHTML = "<p>No files found for this ID.</p>";
+        return;
+      }
 
-        snapshot.forEach(child => {
-          const file = child.val();
-          const link = document.createElement("a");
-          link.href = file.url;
-          link.download = file.name;
-          link.innerText = "⬇️ Download " + file.name;
-          fileList.appendChild(link);
-          fileList.appendChild(document.createElement("br"));
-        });
+      files.forEach((file) => {
+        const link = document.createElement("a");
+        link.href = file.data;
+        link.download = file.name;
+        link.innerText = "⬇️ Download " + file.name;
+        fileList.appendChild(link);
+        fileList.appendChild(document.createElement("br"));
       });
     }
   </script>
+
 </body>
 </html>
