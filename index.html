@@ -1,119 +1,201 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Sender App</title>
+  <meta charset="UTF-8" />
+  <title>Sender — Pure JS + Supabase Storage</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    .box { border: 1px solid #ccc; padding: 20px; margin-bottom: 20px; }
-    input, button { margin: 5px; padding: 8px; }
-    .file-list { margin-top: 10px; }
-    .file-list a { display: block; margin: 5px 0; }
+    :root { font-family: system-ui, Arial, sans-serif; }
+    body { background:#0f172a; color:#e5e7eb; display:flex; min-height:100vh; align-items:center; justify-content:center; margin:0; }
+    .card { width:min(820px,95vw); background:#111827; border:1px solid #1f2937; border-radius:16px; padding:24px; box-shadow:0 10px 30px rgba(0,0,0,.4); }
+    h1 { margin:0 0 10px; font-size:26px; }
+    .row { display:grid; grid-template-columns: 1fr auto; gap:10px; margin:12px 0; }
+    input[type=text] { padding:12px; border-radius:10px; border:1px solid #374151; background:#0b1220; color:#e5e7eb; }
+    input[type=file]{ color:#e5e7eb; }
+    button { padding:12px 16px; border-radius:10px; border:0; background:#2563eb; color:white; cursor:pointer; font-weight:600; }
+    button.secondary { background:#374151; }
+    .muted { color:#9ca3af; font-size:12px; }
+    .file-item { display:flex; justify-content:space-between; align-items:center; padding:10px; background:#0b1220; border:1px solid #1f2937; border-radius:10px; margin:8px 0; }
+    .ok { color:#22c55e; } .err { color:#ef4444; } .tip{color:#a5b4fc;font-size:12px;}
+    progress { width:100%; height:10px; }
+    .grid { display:grid; grid-template-columns: 1fr auto; gap:10px; }
   </style>
 </head>
 <body>
-  <h2>📤 Sender App</h2>
+  <div class="card">
+    <h1>📦 Sender (Pure JS + Supabase)</h1>
 
-  <div class="box">
-    <h3>Generate ID</h3>
-    <button onclick="generateId()">Generate</button>
-    <input type="text" id="genId" readonly>
+    <!-- ID generate / set -->
+    <div class="row">
+      <input id="idInput" type="text" placeholder="Enter or Generate ID">
+      <button id="genBtn">Generate</button>
+    </div>
+    <div class="muted">Share this ID with receiver. Files save to <code>uploads/&lt;ID&gt;/</code>.</div>
+
+    <!-- Upload -->
+    <div class="row">
+      <input id="fileInput" type="file" multiple>
+      <button id="uploadBtn">Send (Upload)</button>
+    </div>
+    <div id="uploadProgress" class="muted"></div>
+
+    <!-- Actions -->
+    <div class="row">
+      <button class="secondary" id="refreshBtn">Refresh File List</button>
+      <button class="secondary" id="clearBtn">Clear Files (ID)</button>
+    </div>
+
+    <div id="msg" class="muted"></div>
+
+    <!-- Files -->
+    <div id="files"></div>
+
+    <p class="tip">Flow: Generate ID → Upload → Receiver enters same ID → Refresh → Download.</p>
   </div>
 
-  <div class="box">
-    <h3>Upload File</h3>
-    <input type="text" id="uploadId" placeholder="Enter ID">
-    <input type="file" id="fileInput">
-    <button onclick="uploadFile()">Send</button>
-    <p id="uploadStatus"></p>
-  </div>
-
-  <div class="box">
-    <h3>Receiver</h3>
-    <input type="text" id="recvId" placeholder="Enter ID">
-    <button onclick="loadFiles()">Show Files</button>
-    <div class="file-list" id="fileList"></div>
-  </div>
-
-  <!-- Firebase SDKs -->
-  <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-storage-compat.js"></script>
-
+  <!-- Supabase JS SDK (v2) -->
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <script>
-    // TODO: apna Firebase config yaha paste karo
-    const firebaseConfig = {
-      apiKey: "YOUR_API_KEY",
-      authDomain: "YOUR_PROJECT.firebaseapp.com",
-      projectId: "YOUR_PROJECT_ID",
-      storageBucket: "YOUR_PROJECT.appspot.com",
-      messagingSenderId: "YOUR_SENDER_ID",
-      appId: "YOUR_APP_ID"
+    // ==== YOUR PROJECT DETAILS ====
+    const SUPABASE_URL = "https://fndmlklrrvhhqonemalj.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZuZG1sa2xycnZoaHFvbmVtYWxqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUzNTM0ODAsImV4cCI6MjA3MDkyOTQ4MH0.XaSU1gs_gWnP4NmMLnuFdfIkVVEQDdLw2IHG-MlIDbY";
+    const BUCKET = "uploads"; // make sure this bucket exists and is Public
+
+    // ==== INIT ====
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // ==== UI refs ====
+    const idInput = document.getElementById('idInput');
+    const msg = document.getElementById('msg');
+    const filesDiv = document.getElementById('files');
+    const fileInput = document.getElementById('fileInput');
+    const progressDiv = document.getElementById('uploadProgress');
+
+    function setMsg(t, cls=''){ msg.textContent = t; msg.className = cls || 'muted'; }
+    function fmtBytes(b=0){ if(!b && b!==0) return ""; const u=['B','KB','MB','GB']; let i=0; while(b>=1024&&i<u.length-1){b/=1024;i++;} return b.toFixed(1)+' '+u[i]; }
+
+    // Generate 8-char ID (no 0/O, 1/I)
+    document.getElementById('genBtn').onclick = () => {
+      const id = genId(8);
+      idInput.value = id;
+      setMsg(`ID generated: ${id}`, 'ok');
+      listFiles();
+    };
+    function genId(len=8){
+      const A = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+      let s=""; for(let i=0;i<len;i++) s += A[Math.floor(Math.random()*A.length)];
+      return s;
+    }
+
+    // Upload (supports multiple)
+    document.getElementById('uploadBtn').onclick = async () => {
+      const id = idInput.value.trim();
+      const files = Array.from(fileInput.files || []);
+      if(!id) return setMsg('Please enter ID first','err');
+      if(files.length === 0) return setMsg('Please choose file(s)','err');
+
+      progressDiv.innerHTML = '';
+      setMsg('Uploading...');
+
+      for (const file of files) {
+        const path = `${id}/${file.name}`;
+        // Note: Supabase standard upload doesn't expose chunk progress on the client.
+        // We show per-file start/finish status.
+        addProgressRow(file.name);
+
+        const { error } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: true });
+
+        if (error) {
+          markProgress(file.name, false, error.message);
+        } else {
+          markProgress(file.name, true);
+        }
+      }
+
+      fileInput.value = '';
+      setMsg('Upload(s) finished.', 'ok');
+      listFiles();
     };
 
-    // Firebase init
-    firebase.initializeApp(firebaseConfig);
-    const storage = firebase.storage();
-
-    // Generate random ID
-    function generateId() {
-      const id = 'ID-' + Math.random().toString(36).substring(2,10);
-      document.getElementById('genId').value = id;
-      document.getElementById('uploadId').value = id;
+    function addProgressRow(name){
+      const row = document.createElement('div');
+      row.className = 'file-item';
+      row.id = 'up-' + name;
+      row.innerHTML = `
+        <div>⬆️ ${name}</div>
+        <div class="muted" data-status>uploading...</div>
+      `;
+      progressDiv.appendChild(row);
+    }
+    function markProgress(name, ok, err=''){
+      const row = document.getElementById('up-' + name);
+      if (!row) return;
+      const st = row.querySelector('[data-status]');
+      if (ok) { st.textContent = 'done ✅'; st.className = 'ok'; }
+      else { st.textContent = 'error: ' + err; st.className = 'err'; }
     }
 
-    // Upload file
-    function uploadFile() {
-      const id = document.getElementById('uploadId').value.trim();
-      const file = document.getElementById('fileInput').files[0];
-      const status = document.getElementById('uploadStatus');
+    // List files under uploads/<ID>/
+    async function listFiles(){
+      const id = idInput.value.trim();
+      if(!id){ filesDiv.innerHTML=''; return; }
+      filesDiv.innerHTML = '<div class="muted">Loading...</div>';
 
-      if (!id || !file) {
-        status.innerText = "❌ Enter ID and choose a file!";
-        return;
-      }
+      const { data, error } = await supabase.storage.from(BUCKET).list(id, { limit: 1000 });
+      if(error){ filesDiv.innerHTML=''; setMsg('List error: ' + error.message, 'err'); return; }
+      if(!data || data.length === 0){ filesDiv.innerHTML = '<div class="muted">No files yet.</div>'; return; }
 
-      const storageRef = storage.ref(`uploads/${id}/${file.name}`);
-      const uploadTask = storageRef.put(file);
+      // Build rows with public URLs
+      const rows = data.map(f => {
+        const fullPath = `${id}/${f.name}`;
+        const { data:pub } = supabase.storage.from(BUCKET).getPublicUrl(fullPath);
+        const url = pub?.publicUrl;
+        const size = f.size ?? f.metadata?.size; // depends on region / API
+        return `
+          <div class="file-item">
+            <div>📄 ${f.name} <span class="muted">(${fmtBytes(size)})</span></div>
+            <div class="grid">
+              <a href="${url}" download>Download</a>
+              <button data-del="${f.name}">Delete</button>
+            </div>
+          </div>
+        `;
+      });
+      filesDiv.innerHTML = rows.join('');
+      setMsg(`Found ${data.length} file(s) for ID ${id}.`, 'ok');
 
-      uploadTask.on('state_changed',
-        (snapshot) => {
-          const prog = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          status.innerText = `Uploading... ${prog.toFixed(0)}%`;
-        },
-        (error) => { status.innerText = "❌ Error: " + error; },
-        () => { status.innerText = "✅ Uploaded successfully!"; }
-      );
+      // attach delete handlers
+      [...filesDiv.querySelectorAll('button[data-del]')].forEach(btn => {
+        btn.addEventListener('click', () => deleteOne(id, btn.getAttribute('data-del')));
+      });
+    }
+    document.getElementById('refreshBtn').onclick = listFiles;
+
+    // Delete single file
+    async function deleteOne(id, name){
+      if(!confirm(`Delete ${name}?`)) return;
+      const { error } = await supabase.storage.from(BUCKET).remove([`${id}/${name}`]);
+      if(error){ setMsg('Delete error: ' + error.message, 'err'); return; }
+      setMsg(`Deleted ${name}.`,'ok');
+      listFiles();
     }
 
-    // Load files for an ID
-    async function loadFiles() {
-      const id = document.getElementById('recvId').value.trim();
-      const fileListDiv = document.getElementById('fileList');
-      fileListDiv.innerHTML = "";
+    // Delete all files for this ID
+    document.getElementById('clearBtn').onclick = async () => {
+      const id = idInput.value.trim();
+      if(!id) return setMsg('Enter ID first','err');
+      if(!confirm(`Delete ALL files for ID ${id}?`)) return;
 
-      if (!id) {
-        fileListDiv.innerText = "❌ Please enter ID!";
-        return;
-      }
+      const { data:list, error:e1 } = await supabase.storage.from(BUCKET).list(id, { limit: 1000 });
+      if(e1){ setMsg('List error: '+e1.message,'err'); return; }
+      if(!list || list.length === 0){ setMsg('Nothing to clear.','ok'); filesDiv.innerHTML=''; return; }
 
-      const listRef = storage.ref(`uploads/${id}`);
-      try {
-        const res = await listRef.listAll();
-        if (res.items.length === 0) {
-          fileListDiv.innerText = "⚠️ No files found!";
-        }
-        res.items.forEach(async (itemRef) => {
-          const url = await itemRef.getDownloadURL();
-          const a = document.createElement('a');
-          a.href = url;
-          a.innerText = "⬇ " + itemRef.name;
-          a.target = "_blank";
-          fileListDiv.appendChild(a);
-        });
-      } catch (e) {
-        fileListDiv.innerText = "❌ Error: " + e;
-      }
-    }
+      const paths = list.map(f => `${id}/${f.name}`);
+      const { error:e2 } = await supabase.storage.from(BUCKET).remove(paths);
+      if(e2){ setMsg('Delete error: '+e2.message,'err'); return; }
+      setMsg('✅ Cleared.','ok');
+      filesDiv.innerHTML = '';
+    };
   </script>
 </body>
 </html>
