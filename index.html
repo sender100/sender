@@ -3,35 +3,39 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>⚡ ID Data Share — Text Only</title>
+<title>⚡ ID Data Share — Receiver Login</title>
+
+<!-- Tailwind -->
 <script src="https://cdn.tailwindcss.com"></script>
+<!-- Animate.css -->
 <link href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" rel="stylesheet"/>
+<!-- Fonts -->
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet"/>
+
 <style>
   :root{ --indigo:#6366f1; --green:#10b981; --red:#ef4444; --blue:#3b82f6 }
   body{ font-family:'Poppins',sans-serif; background:linear-gradient(120deg,#0ea5e9,#6366f1,#a855f7,#ec4899,#14b8a6); background-size:400% 400%; animation:move 18s ease infinite; min-height:100vh }
   @keyframes move{0%{background-position:0 50%}50%{background-position:100% 50%}100%{background-position:0 50%}}
   .glass{ backdrop-filter:blur(14px); background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.25) }
-  .card{ background:rgba(255,255,255,.95); border-radius:18px; box-shadow:0 24px 50px rgba(0,0,0,.2) }
+  .card{ background:rgba(255,255,255,.96); border-radius:18px; box-shadow:0 24px 50px rgba(0,0,0,.2) }
   .f{ border:1px solid rgba(0,0,0,.1); border-radius:14px; padding:.8rem }
   .btn{ border-radius:14px; padding:.8rem 1rem; font-weight:700; color:#fff; cursor:pointer }
   .b-indigo{ background:linear-gradient(135deg,#6366f1,#a855f7) }
   .b-green{ background:linear-gradient(135deg,#10b981,#22c55e) }
   .b-red{ background:linear-gradient(135deg,#ef4444,#f97316) }
   .b-blue{ background:linear-gradient(135deg,#3b82f6,#06b6d4) }
-  .badge{ font-size:.72rem; padding:.22rem .55rem; border-radius:999px; background:rgba(255,255,255,.22); color:#fff }
   .pill{ padding:.2rem .6rem; border-radius:999px; font-size:.7rem; background:#eef2ff; color:#4f46e5 }
 </style>
 </head>
 <body>
-  <div class="glass max-w-6xl mx-auto my-10 p-6 md:p-10 rounded-3xl animate__animated animate__fadeIn">
+  <div class="glass max-w-6xl mx-auto my-8 p-6 md:p-10 rounded-3xl animate__animated animate__fadeIn">
     <div class="flex items-center justify-between mb-6">
-      <h1 class="text-3xl md:text-4xl font-extrabold text-white drop-shadow">⚡ ID Data Share — Text Only</h1>
-      <span class="badge">E2E-Ready • Realtime</span>
+      <h1 class="text-3xl md:text-4xl font-extrabold text-white drop-shadow">⚡ ID Data Share — Receiver Login</h1>
+      <span class="hidden md:inline pill">Text-only • E2E-Ready</span>
     </div>
 
     <div class="grid md:grid-cols-2 gap-6">
-      <!-- Sender -->
+      <!-- Sender (no login required) -->
       <div class="card p-6">
         <h2 class="text-2xl font-bold text-indigo-600 mb-3">📤 Sender</h2>
         <div class="space-y-3">
@@ -40,9 +44,7 @@
             <button id="genId" class="btn b-indigo">Generate</button>
             <button id="copyId" class="btn b-blue">Copy</button>
           </div>
-
-          <textarea id="dataText" class="f w-full h-44" placeholder="यहाँ अपना डाटा/टेक्स्ट लिखें..."></textarea>
-
+          <textarea id="dataText" class="f w-full h-44" placeholder="यहाँ अपना टेक्स्ट/डाटा लिखें…"></textarea>
           <div class="grid grid-cols-2 gap-3">
             <input id="passphrase" class="f" placeholder="Passphrase (optional E2E)"/>
             <select id="expiry" class="f">
@@ -56,12 +58,10 @@
           <label class="inline-flex items-center gap-2 text-sm">
             <input id="oneTime" type="checkbox"> Delete after first view (one-time)
           </label>
-
           <div class="grid grid-cols-2 gap-3">
             <button id="sendBtn" class="btn b-indigo w-full">🚀 Send</button>
             <button id="delBtn" class="btn b-red w-full">🗑️ Delete ID</button>
           </div>
-
           <div>
             <div id="status" class="text-sm"></div>
             <div id="shareWrap" class="hidden mt-3">
@@ -75,10 +75,25 @@
         </div>
       </div>
 
-      <!-- Receiver -->
+      <!-- Receiver (login required) -->
       <div class="card p-6">
         <h2 class="text-2xl font-bold text-green-600 mb-3">📥 Receiver</h2>
-        <div class="space-y-3">
+
+        <!-- Auth box -->
+        <div id="authBox" class="p-4 border rounded-xl mb-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="font-semibold">Login required to receive</div>
+              <div id="authState" class="text-xs opacity-70">Not signed in</div>
+            </div>
+            <div class="flex gap-2">
+              <button id="loginBtn" class="btn b-green">Sign in with Google</button>
+              <button id="logoutBtn" class="btn b-red hidden">Sign out</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-3 opacity-60 pointer-events-none" id="recvWrap">
           <div class="flex gap-2">
             <input id="receiverId" class="f flex-1" placeholder="Enter ID to receive"/>
             <button id="openBtn" class="btn b-green">🔍 Open</button>
@@ -100,6 +115,7 @@
             <div id="verifyOut" class="text-xs opacity-80 mt-2"></div>
           </div>
         </div>
+        <div id="recvHint" class="text-xs opacity-70">Login करें, फिर ID डालकर “Open” दबाएँ।</div>
       </div>
     </div>
 
@@ -119,6 +135,7 @@
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js';
     import { getDatabase, ref, set, onValue, off, remove, get } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-database.js';
+    import { getAuth, onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js';
 
     // ====== PUT YOUR REAL CONFIG ======
     const firebaseConfig = {
@@ -130,16 +147,25 @@
       messagingSenderId: '0000000000',
       appId: '1:0000000000:web:xxxxxxxxxxxxxx'
     };
+
     const app = initializeApp(firebaseConfig);
     const db  = getDatabase(app);
+    const auth = getAuth(app);
+    const provider = new GoogleAuthProvider();
 
     // ---------- Utils ----------
     const $ = id => document.getElementById(id);
-    function randomId(n=8){ const s='abcdefghijklmnopqrstuvwxyz0123456789'; let r=''; for(let i=0;i<n;i++) r+=s[Math.floor(Math.random()*s.length)]; return r }
-    function toast(msg,type='info'){ const c=type==='ok'?'#10b981':type==='err'?'#ef4444':'#3b82f6'; const el=document.createElement('div'); el.textContent=msg; el.style.cssText=`position:fixed;right:12px;top:12px;background:${c};color:#fff;padding:8px 12px;border-radius:10px;box-shadow:0 8px 20px rgba(0,0,0,.2);z-index:9999;`; document.body.appendChild(el); setTimeout(()=>el.remove(),1800) }
-    function setShareLink(id){ const u=new URL(location.href); u.searchParams.set('id',id); $('shareLink').value=u.toString(); $('shareWrap').classList.remove('hidden') }
+    const toast = (msg,type='info') => {
+      const c=type==='ok'?'#10b981':type==='err'?'#ef4444':'#3b82f6';
+      const el=document.createElement('div');
+      el.textContent=msg;
+      el.style.cssText=`position:fixed;right:12px;top:12px;background:${c};color:#fff;padding:8px 12px;border-radius:10px;box-shadow:0 8px 20px rgba(0,0,0,.2);z-index:9999;`;
+      document.body.appendChild(el); setTimeout(()=>el.remove(),1800);
+    };
+    const randomId=n=>Array.from({length:n||8},()=> 'abcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random()*36)]).join('');
+    const setShareLink=(id)=>{ const u=new URL(location.href); u.searchParams.set('id',id); $('shareLink').value=u.toString(); $('shareWrap').classList.remove('hidden') };
 
-    // ---------- Local history ----------
+    // ---------- History ----------
     const HSENT='ids-text-sent', HREC='ids-text-recv';
     const getH=k=>{try{return JSON.parse(localStorage.getItem(k)||'[]')}catch{return[]}};
     const putH=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
@@ -187,13 +213,37 @@
       return dec.decode(plain);
     }
 
-    // ---------- Pre-fill from URL ----------
-    (function(){ const q=new URL(location.href).searchParams.get('id'); if(q){ $('receiverId').value=q; toast('ID from URL'); startReceive(q) } })();
+    // ---------- Auth UI handling ----------
+    const recvWrap = $('recvWrap');
+    const recvHint = $('recvHint');
+    const authStateEl = $('authState');
+    function setRecvEnabled(on){
+      recvWrap.style.opacity = on? '1' : '0.6';
+      recvWrap.style.pointerEvents = on? 'auto' : 'none';
+      $('logoutBtn').classList.toggle('hidden', !on);
+      $('loginBtn').classList.toggle('hidden', on);
+      authStateEl.textContent = on? 'Signed in' : 'Not signed in';
+    }
+    setRecvEnabled(false);
+
+    $('loginBtn').onclick = async ()=>{
+      try{ await signInWithPopup(auth, provider); toast('Signed in','ok') }catch(e){ toast('Login failed','err') }
+    };
+    $('logoutBtn').onclick = async ()=>{
+      try{ await signOut(auth); toast('Signed out','ok') }catch(e){ toast('Signout failed','err') }
+    };
+
+    onAuthStateChanged(auth, user=>{
+      setRecvEnabled(!!user);
+      if(user && $('receiverId').value.trim()){ startReceive($('receiverId').value.trim()); }
+    });
+
+    // ---------- Pre-fill ID from URL ----------
+    (function(){ const q=new URL(location.href).searchParams.get('id'); if(q){ $('receiverId').value=q; toast('ID from URL') } })();
 
     // ---------- Sender ----------
     $('genId').onclick=()=>{ const id=randomId(8); $('senderId').value=id; navigator.clipboard.writeText(id); setShareLink(id); toast('ID generated','ok') };
     $('copyId').onclick=()=>{ const id=$('senderId').value.trim(); if(!id) return toast('No ID','err'); navigator.clipboard.writeText(id); setShareLink(id); toast('Copied','ok') };
-
     $('copyShare').onclick=()=>{ const v=$('shareLink').value; if(!v) return toast('No link','err'); navigator.clipboard.writeText(v); toast('Link copied','ok') };
 
     $('delBtn').onclick=async ()=>{
@@ -209,7 +259,6 @@
       const expiryMs=parseInt($('expiry').value,10)||0;
       const oneTime=$('oneTime').checked;
 
-      // overwrite ask (if not expired)
       try{
         const existing=(await get(ref(db,'texts/'+id))).val();
         if(existing){ const expired = existing.expiresAt && Date.now()>existing.expiresAt; if(!expired){ const ok=confirm(`Data already exists for ID "${id}". Overwrite?`); if(!ok) return; } }
@@ -230,14 +279,13 @@
         await set(ref(db,'texts/'+id), payload);
         $('status').innerHTML=`✅ Sent with ID <b>${id}</b> <span class="pill">SHA: ${sha.slice(0,10)}…</span>`;
         setShareLink(id);
-        const item={id, title:(text.split('\n')[0]||'Data').slice(0,40), time:new Date().toLocaleString()};
-        const arr=getH(HSENT); arr.unshift(item); putH(HSENT,arr); renderHist();
+        const arr=getH(HSENT); arr.unshift({id, title:(text.split('\n')[0]||'Data').slice(0,40), time:new Date().toLocaleString()}); putH(HSENT,arr); renderHist();
         toast('Sent','ok');
       }catch(e){ console.error(e); toast('Send failed','err') }
     };
 
-    // ---------- Receiver ----------
-    $('openBtn').onclick=()=>{ const id=$('receiverId').value.trim(); if(!id) return toast('Enter ID','err'); startReceive(id) };
+    // ---------- Receiver (requires auth) ----------
+    $('openBtn').onclick=()=>{ if(!auth.currentUser){ return toast('Login first','err') } const id=$('receiverId').value.trim(); if(!id) return toast('Enter ID','err'); startReceive(id) };
     $('stopBtn').onclick=()=>{ stopReceive(); toast('Stopped') };
 
     let currentRef=null, countdownTimer=null;
@@ -249,6 +297,7 @@
     }
 
     async function startReceive(id){
+      if(!auth.currentUser){ toast('Login required','err'); return }
       stopReceive();
       $('outCard').classList.add('hidden');
       $('out').textContent='';
@@ -273,32 +322,31 @@
         $('meta').textContent = data.enc? 'E2E' : 'Plain';
         $('meta2').textContent = `ID: ${id} • Views: ${data.views||0}`;
 
-        // Copy + Verify
         $('copyData').onclick=()=>{ navigator.clipboard.writeText(text); toast('Copied','ok') };
         $('verifyBtn').onclick=async ()=>{
           const h=await sha256(enc.encode(text));
           $('verifyOut').textContent = h===data.sha ? '✅ Hash verified (SHA-256 matches)' : '❌ Hash mismatch';
         };
 
-        // bump views & one-time delete
         try{
           const snap2=await get(currentRef);
           const val=snap2.val(); if(val){ val.views=(val.views||0)+1; await set(currentRef,val) }
         }catch{}
         if(data.oneTime){ try{ await remove(currentRef) }catch{} }
 
-        // history
         const arr=getH(HREC); arr.unshift({id, title:(text.split('\n')[0]||'Data').slice(0,40), time:new Date().toLocaleString()}); putH(HREC,arr); renderHist();
       });
     }
   </script>
 
-  <!-- Example Firebase Rules (adjust as needed)
+  <!-- Realtime Database Rules (must set in Firebase Console)
   {
     "rules": {
       "texts": {
         "$id": {
-          ".read": true,
+          // Receiver must be logged in to read:
+          ".read": "auth != null",
+          // Sender can write without login (या चाहें तो 'auth != null' कर दें):
           ".write": true,
           ".validate": "
             (newData.hasChildren(['data']) || newData.hasChildren(['cipher','iv','salt'])) &&
