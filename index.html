@@ -2,200 +2,520 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Sender — Pure JS + Supabase Storage</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>⚡ Realtime Data Share — Pro+</title>
+
+  <!-- Tailwind CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"/>
+  <!-- Animate.css -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" rel="stylesheet"/>
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet"/>
+  <!-- QR Code -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
   <style>
-    :root { font-family: system-ui, Arial, sans-serif; }
-    body { background:#0f172a; color:#e5e7eb; display:flex; min-height:100vh; align-items:center; justify-content:center; margin:0; }
-    .card { width:min(820px,95vw); background:#111827; border:1px solid #1f2937; border-radius:16px; padding:24px; box-shadow:0 10px 30px rgba(0,0,0,.4); }
-    h1 { margin:0 0 10px; font-size:26px; }
-    .row { display:grid; grid-template-columns: 1fr auto; gap:10px; margin:12px 0; }
-    input[type=text] { padding:12px; border-radius:10px; border:1px solid #374151; background:#0b1220; color:#e5e7eb; }
-    input[type=file]{ color:#e5e7eb; }
-    button { padding:12px 16px; border-radius:10px; border:0; background:#2563eb; color:white; cursor:pointer; font-weight:600; }
-    button.secondary { background:#374151; }
-    .muted { color:#9ca3af; font-size:12px; }
-    .file-item { display:flex; justify-content:space-between; align-items:center; padding:10px; background:#0b1220; border:1px solid #1f2937; border-radius:10px; margin:8px 0; }
-    .ok { color:#22c55e; } .err { color:#ef4444; } .tip{color:#a5b4fc;font-size:12px;}
-    progress { width:100%; height:10px; }
-    .grid { display:grid; grid-template-columns: 1fr auto; gap:10px; }
+    :root{ --indigo:#6366f1; --pink:#ec4899; --emerald:#10b981; --red:#ef4444; --blue:#3b82f6 }
+    *{ box-sizing:border-box }
+    body{ font-family:'Poppins',sans-serif; overflow-x:hidden }
+    h1,h2{ font-family:'Orbitron',sans-serif }
+
+    /* Animated gradient background */
+    .bg-animated{ background: linear-gradient(120deg, #0ea5e9, #6366f1, #a855f7, #ec4899, #14b8a6); background-size: 400% 400%; animation: gradientShift 18s ease infinite; min-height:100vh }
+    @keyframes gradientShift{ 0%{ background-position: 0% 50% } 50%{ background-position: 100% 50% } 100%{ background-position: 0% 50% } }
+
+    /* Glassmorphism */
+    .glass{ backdrop-filter: blur(14px); background: rgba(255,255,255,.13); border: 1px solid rgba(255,255,255,.25); box-shadow: 0 20px 60px rgba(0,0,0,.25) }
+
+    /* Cards + neon shimmer */
+    .card{ position:relative; overflow:hidden; background: rgba(255,255,255,.9); border-radius: 18px; box-shadow: 0 24px 50px rgba(0,0,0,.2); transition: transform .25s ease, box-shadow .25s ease }
+    .card:before{ content:""; position:absolute; inset:-2px; background: conic-gradient(from 180deg at 50% 50%, rgba(99,102,241,.35), rgba(236,72,153,.35), rgba(20,184,166,.35), transparent 70%); filter: blur(18px); z-index:-1 }
+    .card:hover{ transform: translateY(-3px); box-shadow: 0 28px 70px rgba(0,0,0,.28) }
+
+    .f-input{ border:1px solid rgba(0,0,0,.1); border-radius:14px; padding:.85rem }
+    .f-input:focus{ outline:none; box-shadow:0 0 0 3px rgba(99,102,241,.25); border-color:var(--indigo) }
+
+    .btn{ border-radius:14px; padding:.8rem 1rem; font-weight:700; color:#fff; transition:transform .2s ease, box-shadow .2s ease; cursor:pointer }
+    .btn-indigo{ background:linear-gradient(135deg,#6366f1,#a855f7); box-shadow:0 10px 22px rgba(99,102,241,.45) }
+    .btn-indigo:hover{ transform:translateY(-1px) scale(1.02); box-shadow:0 14px 30px rgba(99,102,241,.65) }
+    .btn-green{ background:linear-gradient(135deg,#10b981,#22c55e); box-shadow:0 10px 22px rgba(16,185,129,.45) }
+    .btn-green:hover{ transform:translateY(-1px) scale(1.02); box-shadow:0 14px 30px rgba(16,185,129,.65) }
+    .btn-blue{ background:linear-gradient(135deg,#3b82f6,#06b6d4) }
+    .btn-red{ background:linear-gradient(135deg,#ef4444,#f97316) }
+    .btn-light{ background:#eef2ff; color:#4f46e5; font-weight:600 }
+
+    .badge{ font-size:.72rem; padding:.22rem .55rem; border-radius:999px; background:rgba(255,255,255,.22); color:#fff }
+    .section-title{ display:flex; align-items:center; gap:.5rem }
+    .section-title .dot{ width:10px; height:10px; border-radius:999px }
+
+    /* Progress bar */
+    .progress{ height:10px; background:linear-gradient(90deg,var(--indigo),var(--pink)); border-radius:12px; width:0%; transition:width .25s ease }
+
+    /* Loader */
+    .loader-wrap{ position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:10000; backdrop-filter: blur(6px) brightness(0.9)}
+    .spinner{ width:70px; height:70px; border-radius:50%; border:6px solid rgba(255,255,255,.35); border-top-color:#fff; animation:spin 1s linear infinite; box-shadow:0 0 40px rgba(255,255,255,.55) }
+    @keyframes spin{ to{ transform:rotate(360deg) } }
+
+    /* Toasts */
+    .toasts{ position:fixed; top:14px; right:14px; z-index:11000; display:flex; flex-direction:column; gap:10px }
+    .toast{ min-width:260px; max-width:380px; padding:12px 14px; color:#fff; border-radius:14px; box-shadow:0 12px 28px rgba(0,0,0,.22); backdrop-filter: blur(8px) saturate(1.1) }
+    .ok{ background:linear-gradient(135deg,#34d399,#10b981) }
+    .err{ background:linear-gradient(135deg,#f87171,#ef4444) }
+    .info{ background:linear-gradient(135deg,#60a5fa,#3b82f6) }
+    .toast-title{ font-weight:800; letter-spacing:.2px }
+    .toast-msg{ font-size:.9rem; opacity:.95 }
+
+    /* Dark */
+    .dark .card{ background: rgba(17,24,39,.88); color:#e5e7eb; border:1px solid rgba(255,255,255,.05) }
+    .dark .f-input{ background:rgba(255,255,255,.06); color:#e5e7eb; border-color:rgba(255,255,255,.08) }
+    .dark .f-input::placeholder{ color:#9ca3af }
+    .dark .btn-light{ background:#111827; color:#c7d2fe }
+
+    /* Drop zone */
+    .dropzone{ border:2px dashed rgba(0,0,0,.2); border-radius:14px; padding:18px; transition:.2s }
+    .dropzone.drag{ border-color:#60a5fa; background:rgba(96,165,250,.08) }
+
+    .history-item{ display:flex; align-items:center; justify-content:space-between; padding:.6rem .8rem; border-radius:12px; background:rgba(255,255,255,.6) }
+    .dark .history-item{ background:rgba(255,255,255,.08) }
+
+    .pill{ padding:.25rem .6rem; border-radius:9999px; font-size:.7rem; background:rgba(255,255,255,.5) }
   </style>
 </head>
-<body>
-  <div class="card">
-    <h1>📦 Sender (Pure JS + Supabase)</h1>
+<body class="bg-animated">
+  <!-- Loader -->
+  <div id="loader" class="loader-wrap"><div class="spinner" role="status" aria-live="polite" aria-label="Loading"></div></div>
+  <!-- Toasts -->
+  <div id="toasts" class="toasts" aria-live="polite" aria-atomic="true"></div>
 
-    <!-- ID generate / set -->
-    <div class="row">
-      <input id="idInput" type="text" placeholder="Enter or Generate ID">
-      <button id="genBtn">Generate</button>
-    </div>
-    <div class="muted">Share this ID with receiver. Files save to <code>uploads/&lt;ID&gt;/</code>.</div>
-
-    <!-- Upload -->
-    <div class="row">
-      <input id="fileInput" type="file" multiple>
-      <button id="uploadBtn">Send (Upload)</button>
-    </div>
-    <div id="uploadProgress" class="muted"></div>
-
-    <!-- Actions -->
-    <div class="row">
-      <button class="secondary" id="refreshBtn">Refresh File List</button>
-      <button class="secondary" id="clearBtn">Clear Files (ID)</button>
+  <div class="glass w-full max-w-7xl mx-auto my-8 md:my-12 rounded-3xl p-6 md:p-10 animate__animated animate__fadeIn">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+      <div class="flex items-center gap-3">
+        <h1 class="text-3xl md:text-5xl font-extrabold text-white drop-shadow">⚡ Realtime Data Share</h1>
+        <span class="badge hidden md:inline">Live • E2E-Ready</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="darkToggle" class="btn btn-light px-4 py-2" aria-pressed="false">🌙 Dark</button>
+        <button id="installBtn" class="btn btn-light px-4 py-2 hidden">⬇️ Install</button>
+        <a class="btn btn-blue px-4 py-2 text-white" href="https://console.firebase.google.com/" target="_blank" rel="noopener">Firebase</a>
+      </div>
     </div>
 
-    <div id="msg" class="muted"></div>
+    <div class="grid lg:grid-cols-3 gap-6">
+      <!-- Sender -->
+      <div class="card p-6 space-y-4 lg:col-span-1">
+        <div class="section-title mb-1">
+          <span class="dot" style="background:var(--indigo)"></span>
+          <h2 class="text-2xl text-indigo-700 dark:text-indigo-300">📤 Sender</h2>
+        </div>
 
-    <!-- Files -->
-    <div id="files"></div>
+        <div class="grid grid-cols-1 gap-3">
+          <div class="flex gap-2">
+            <input id="senderId" class="f-input flex-1" placeholder="Custom ID (optional)" aria-label="Custom ID"/>
+            <button id="genId" class="btn btn-indigo" title="Generate ID">Generate</button>
+            <button id="copyId" class="btn btn-light" title="Copy ID">Copy</button>
+          </div>
 
-    <p class="tip">Flow: Generate ID → Upload → Receiver enters same ID → Refresh → Download.</p>
+          <div class="dropzone" id="dropzone" aria-label="File dropzone">
+            <div class="flex items-center justify-between">
+              <div class="flex-1">
+                <label class="block text-sm font-semibold">Select file (≤ 10 MB)</label>
+                <input id="fileInput" type="file" class="w-full f-input mt-2" />
+                <p id="fileInfo" class="text-xs opacity-80 mt-1"></p>
+                <div id="previewWrap" class="mt-2 hidden">
+                  <div class="text-xs mb-1">Preview</div>
+                  <div id="previewBox" class="rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700"></div>
+                </div>
+              </div>
+              <div class="hidden md:block text-4xl" aria-hidden="true">📎</div>
+            </div>
+            <p class="text-xs mt-2">Tip: Drag & drop, or paste (Ctrl+V) an image/file here.</p>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <input id="passphrase" class="f-input" placeholder="Passphrase (for encryption)"/>
+              <div class="flex items-center gap-2 mt-1">
+                <div id="pwStrength" class="pill">Strength: –</div>
+                <div id="pwHint" class="text-xs opacity-70"></div>
+              </div>
+            </div>
+            <select id="expiry" class="f-input" aria-label="Expiry">
+              <option value="600000">Expire in 10 min</option>
+              <option value="3600000">Expire in 1 hour</option>
+              <option value="86400000" selected>Expire in 1 day</option>
+              <option value="604800000">Expire in 7 days</option>
+            </select>
+          </div>
+          <label class="inline-flex items-center gap-2 text-sm">
+            <input id="oneTime" type="checkbox" class="form-checkbox"> Delete after first download (one‑time link)
+          </label>
+
+          <div class="grid grid-cols-2 gap-3">
+            <button id="sendBtn" class="btn btn-indigo w-full animate__animated animate__pulse animate__infinite" aria-label="Send file">🚀 Send</button>
+            <button id="deleteBtn" class="btn btn-red w-full" title="Delete current ID data">🗑️ Delete</button>
+          </div>
+
+          <div class="mt-2"><div id="progress" class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></div></div>
+          <p id="status" class="text-sm"></p>
+
+          <!-- Share -->
+          <div id="shareWrap" class="mt-3 hidden">
+            <p class="text-sm mb-2">Share receiver link or scan QR:</p>
+            <div class="flex gap-2 mb-3">
+              <input id="shareLink" class="f-input flex-1 bg-white dark:bg-gray-900" readonly/>
+              <button id="copyShare" class="btn btn-blue">Copy Link</button>
+              <button id="sysShare" class="btn btn-green">Share</button>
+            </div>
+            <div id="qrcode" class="p-3 bg-white dark:bg-gray-900 rounded-xl inline-block"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Receiver -->
+      <div class="card p-6 lg:col-span-1">
+        <div class="section-title mb-4"><span class="dot" style="background:var(--emerald)"></span><h2 class="text-2xl text-green-700 dark:text-green-300">📥 Receiver</h2></div>
+        <label class="block text-sm font-semibold mb-2">Enter ID to receive</label>
+        <div class="flex gap-2 mb-4">
+          <input id="receiverId" class="f-input flex-1" placeholder="ID to receive" aria-label="Receiver ID"/>
+          <button id="openBtn" class="btn btn-green">🔍 Open</button>
+          <button id="stopBtn" class="btn btn-light">✋ Stop</button>
+        </div>
+        <div class="grid grid-cols-1 gap-2 mb-3">
+          <input id="recvPass" class="f-input" placeholder="Passphrase (if encrypted)"/>
+        </div>
+        <div id="countdown" class="text-xs opacity-75 mb-2 hidden"></div>
+        <div id="receiveBox" class="space-y-3"></div>
+      </div>
+
+      <!-- History -->
+      <div class="card p-6 lg:col-span-1">
+        <div class="section-title mb-4"><span class="dot" style="background:var(--blue)"></span><h2 class="text-2xl text-blue-700 dark:text-blue-300">📜 History</h2></div>
+        <div class="flex gap-2 mb-4">
+          <button id="tabSent" class="btn btn-light flex-1">Sent</button>
+          <button id="tabRecv" class="btn btn-light flex-1">Received</button>
+          <button id="clearHist" class="btn btn-light">Clear</button>
+        </div>
+        <div id="histList" class="space-y-2 max-h-80 overflow-auto pr-1"></div>
+      </div>
+    </div>
   </div>
 
-  <!-- Supabase JS SDK (v2) -->
-  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-  <script>
-    // ==== YOUR PROJECT DETAILS ====
-    const SUPABASE_URL = "https://fndmlklrrvhhqonemalj.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZuZG1sa2xycnZoaHFvbmVtYWxqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUzNTM0ODAsImV4cCI6MjA3MDkyOTQ4MH0.XaSU1gs_gWnP4NmMLnuFdfIkVVEQDdLw2IHG-MlIDbY";
-    const BUCKET = "uploads"; // make sure this bucket exists and is Public
+  <!-- Firebase v10 (ES Modules) -->
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+    import { getDatabase, ref, set, onValue, off, remove, get } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
-    // ==== INIT ====
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-    // ==== UI refs ====
-    const idInput = document.getElementById('idInput');
-    const msg = document.getElementById('msg');
-    const filesDiv = document.getElementById('files');
-    const fileInput = document.getElementById('fileInput');
-    const progressDiv = document.getElementById('uploadProgress');
-
-    function setMsg(t, cls=''){ msg.textContent = t; msg.className = cls || 'muted'; }
-    function fmtBytes(b=0){ if(!b && b!==0) return ""; const u=['B','KB','MB','GB']; let i=0; while(b>=1024&&i<u.length-1){b/=1024;i++;} return b.toFixed(1)+' '+u[i]; }
-
-    // Generate 8-char ID (no 0/O, 1/I)
-    document.getElementById('genBtn').onclick = () => {
-      const id = genId(8);
-      idInput.value = id;
-      setMsg(`ID generated: ${id}`, 'ok');
-      listFiles();
+    /* ---------------- Firebase Config (PUT REAL VALUES) ---------------- */
+    const firebaseConfig = {
+      apiKey: 'AIzaSyYOUR_KEY',
+      authDomain: 'your-project.firebaseapp.com',
+      databaseURL: 'https://your-project-default-rtdb.firebaseio.com',
+      projectId: 'your-project',
+      storageBucket: 'your-project.appspot.com',
+      messagingSenderId: '0000000000',
+      appId: '1:0000000000:web:xxxxxxxxxxxxxx'
     };
-    function genId(len=8){
-      const A = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-      let s=""; for(let i=0;i<len;i++) s += A[Math.floor(Math.random()*A.length)];
-      return s;
+
+    const app = initializeApp(firebaseConfig);
+    const db  = getDatabase(app);
+
+    /* ---------------- Shortcuts ---------------- */
+    const $ = id => document.getElementById(id);
+    const asMB = b => (b/1024/1024).toFixed(2)+' MB';
+
+    /* ---------------- Dark Mode ---------------- */
+    const DARK_KEY='rds-dark';
+    function applyDark(on){
+      document.documentElement.classList.toggle('dark',on);
+      document.body.classList.toggle('dark',on);
+      $('darkToggle').textContent=on?'☀️ Light':'🌙 Dark';
+      $('darkToggle').setAttribute('aria-pressed', String(on));
+      localStorage.setItem(DARK_KEY,on?'1':'0')
+    }
+    $('darkToggle').addEventListener('click',()=>applyDark(!document.documentElement.classList.contains('dark')));
+    (function(){
+      const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const saved = localStorage.getItem(DARK_KEY);
+      applyDark(saved? saved==='1' : prefersDark);
+    })();
+
+    /* ---------------- PWA Install (optional) ---------------- */
+    let deferredPrompt=null; const installBtn=$('installBtn');
+    window.addEventListener('beforeinstallprompt',(e)=>{ e.preventDefault(); deferredPrompt=e; installBtn.classList.remove('hidden'); });
+    installBtn?.addEventListener('click', async ()=>{ if(!deferredPrompt) return; deferredPrompt.prompt(); deferredPrompt=null; installBtn.classList.add('hidden'); });
+
+    /* ---------------- Toasts + Ding ---------------- */
+    const ctx = new (window.AudioContext||window.webkitAudioContext)();
+    function ding(){ try{ const o=ctx.createOscillator(), g=ctx.createGain(); o.type='sine'; o.frequency.value=880; o.connect(g); g.connect(ctx.destination); g.gain.setValueAtTime(.0001,ctx.currentTime); g.gain.exponentialRampToValueAtTime(.25,ctx.currentTime+.02); g.gain.exponentialRampToValueAtTime(.0001,ctx.currentTime+.25); o.start(); o.stop(ctx.currentTime+.26) }catch(e){} }
+    function toast(type,title,msg){ const wrap=$('toasts'); const el=document.createElement('div'); el.className=`toast ${type==='ok'?'ok':type==='err'?'err':'info'} animate__animated animate__fadeInRight`; el.innerHTML=`<div class="toast-title">${title}</div><div class="toast-msg">${msg}</div>`; wrap.appendChild(el); ding(); setTimeout(()=>{ el.classList.remove('animate__fadeInRight'); el.classList.add('animate__fadeOutRight'); setTimeout(()=>wrap.removeChild(el),600) },2600) }
+
+    /* ---------------- Utils ---------------- */
+    const loader=$('loader'); const showLoader=on=>loader.style.display=on?'flex':'none';
+    function randomId(n=8){ const s='abcdefghijklmnopqrstuvwxyz0123456789'; let r=''; for(let i=0;i<n;i++) r+=s[Math.floor(Math.random()*s.length)]; return r }
+    function copy(text){ navigator.clipboard.writeText(text).then(()=>toast('ok','Copied','Copied to clipboard')).catch(()=>toast('err','Copy Failed','Copy manually')) }
+    function setShareLink(id){ const url=new URL(window.location.href); url.searchParams.set('id',id); $('shareLink').value=url.toString(); $('shareWrap').classList.remove('hidden'); $('qrcode').innerHTML=''; new QRCode('qrcode',{ text:url.toString(), width:160, height:160 }) }
+
+    /* ---------------- History (localStorage) ---------------- */
+    const HSENT='rds-h-sent', HREC='rds-h-recv';
+    function getH(k){ try{ return JSON.parse(localStorage.getItem(k)||'[]') }catch(e){ return [] } }
+    function putH(k,arr){ localStorage.setItem(k, JSON.stringify(arr)) }
+    function addSent(item){ const a=getH(HSENT); a.unshift(item); putH(HSENT,a); renderHist() }
+    function addRecv(item){ const a=getH(HREC); a.unshift(item); putH(HREC,a); renderHist() }
+    let histTab='sent';
+    function renderHist(){ const box=$('histList'); box.innerHTML=''; const data=histTab==='sent'?getH(HSENT):getH(HREC); if(!data.length){ box.innerHTML=`<div class="text-sm opacity-75">${histTab==='sent'?'No sent items yet':'No received items yet'}</div>`; return } data.slice(0,120).forEach(d=>{ const row=document.createElement('div'); row.className='history-item'; row.innerHTML=`<div><div class="font-semibold">${d.name} <span class="text-xs opacity-70">(${d.size||''})</span>${d.enc?' <span class=\"text-xs ml-1 px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200\">E2E</span>':''}</div><div class="text-xs opacity-70">${d.time} • ID: ${d.id}</div></div><div class="flex gap-2">${d.link?`<a class="btn btn-blue px-3 py-2 text-white" href="${d.link}" target="_blank">Open</a>`:''}<button class="btn btn-light px-3 py-2" onclick="navigator.clipboard.writeText('${d.id}')">Copy ID</button></div>`; box.appendChild(row) }) }
+    $('tabSent').onclick=()=>{ histTab='sent'; renderHist() }
+    $('tabRecv').onclick=()=>{ histTab='recv'; renderHist() }
+    $('clearHist').onclick=()=>{ localStorage.removeItem(HSENT); localStorage.removeItem(HREC); renderHist(); toast('ok','Cleared','History removed') }
+    renderHist();
+
+    /* ---------------- Crypto (Web Crypto API) ---------------- */
+    const textEncoder = new TextEncoder();
+    const textDecoder = new TextDecoder();
+
+    async function sha256(buf){ const hash=await crypto.subtle.digest('SHA-256', buf); return btoa(String.fromCharCode(...new Uint8Array(hash))) }
+    function ab2b64(buf){ let binary=''; const bytes=new Uint8Array(buf); for(let i=0;i<bytes.length;i++) binary+=String.fromCharCode(bytes[i]); return btoa(binary) }
+    function b642ab(b64){ const binary=atob(b64); const buf=new ArrayBuffer(binary.length); const bytes=new Uint8Array(buf); for(let i=0;i<binary.length;i++) bytes[i]=binary.charCodeAt(i); return buf }
+
+    async function deriveKey(pass, salt){
+      const keyMaterial = await crypto.subtle.importKey('raw', textEncoder.encode(pass), 'PBKDF2', false, ['deriveKey']);
+      return crypto.subtle.deriveKey({name:'PBKDF2', salt, iterations:150000, hash:'SHA-256'}, keyMaterial, {name:'AES-GCM', length:256}, false, ['encrypt','decrypt']);
     }
 
-    // Upload (supports multiple)
-    document.getElementById('uploadBtn').onclick = async () => {
-      const id = idInput.value.trim();
-      const files = Array.from(fileInput.files || []);
-      if(!id) return setMsg('Please enter ID first','err');
-      if(files.length === 0) return setMsg('Please choose file(s)','err');
+    async function encryptBytes(bytes, pass){
+      const salt=crypto.getRandomValues(new Uint8Array(16));
+      const iv=crypto.getRandomValues(new Uint8Array(12));
+      const key=await deriveKey(pass, salt);
+      const cipher=await crypto.subtle.encrypt({name:'AES-GCM', iv}, key, bytes);
+      const sha=await sha256(bytes.buffer);
+      return { cipherB64: ab2b64(cipher), ivB64: ab2b64(iv), saltB64: ab2b64(salt), sha };
+    }
 
-      progressDiv.innerHTML = '';
-      setMsg('Uploading...');
+    async function decryptToBytes(cipherB64, pass, ivB64, saltB64){
+      const salt=new Uint8Array(b642ab(saltB64));
+      const iv=new Uint8Array(b642ab(ivB64));
+      const key=await deriveKey(pass, salt);
+      const plain=await crypto.subtle.decrypt({name:'AES-GCM', iv}, key, b642ab(cipherB64));
+      return new Uint8Array(plain);
+    }
 
-      for (const file of files) {
-        const path = `${id}/${file.name}`;
-        // Note: Supabase standard upload doesn't expose chunk progress on the client.
-        // We show per-file start/finish status.
-        addProgressRow(file.name);
+    /* ---------------- Password Strength (simple) ---------------- */
+    function scorePass(p){ let s=0; if(p.length>=8) s++; if(/[A-Z]/.test(p)) s++; if(/[a-z]/.test(p)) s++; if(/\d/.test(p)) s++; if(/[^\w\s]/.test(p)) s++; return s }
+    $('passphrase').addEventListener('input', (e)=>{ const p=e.target.value; const s=scorePass(p); const map=['–','Weak','Okay','Good','Strong','Very strong']; $('pwStrength').textContent = 'Strength: '+map[s]; $('pwHint').textContent = p && s<3 ? 'Use 8+ chars incl. Aa1!' : '' });
 
-        const { error } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: true });
+    /* ---------------- Drag & Drop + Paste ---------------- */
+    const dz=$('dropzone');
+    ['dragenter','dragover'].forEach(ev=>dz.addEventListener(ev,e=>{ e.preventDefault(); dz.classList.add('drag') }))
+    ;['dragleave','drop'].forEach(ev=>dz.addEventListener(ev,e=>{ e.preventDefault(); dz.classList.remove('drag') }))
+    dz.addEventListener('drop',e=>{ const f=e.dataTransfer.files?.[0]; if(f){ $('fileInput').files=e.dataTransfer.files; updateFileInfo(f) } })
+    window.addEventListener('paste',e=>{ const f=[...e.clipboardData.items].find(i=>i.kind==='file')?.getAsFile(); if(f){ const dt=new DataTransfer(); dt.items.add(f); $('fileInput').files=dt.files; updateFileInfo(f); toast('ok','Pasted','File captured from clipboard') } })
 
-        if (error) {
-          markProgress(file.name, false, error.message);
-        } else {
-          markProgress(file.name, true);
+    /* ---------------- File info + Preview ---------------- */
+    $('fileInput').addEventListener('change', e=>{ const f=e.target.files[0]; if(f) updateFileInfo(f) });
+    function updateFileInfo(file){ $('fileInfo').textContent = `${file.name} • ${asMB(file.size)}`; buildPreview(file) }
+    function buildPreview(file){
+      const wrap=$('previewWrap'); const box=$('previewBox'); box.innerHTML=''; if(!file){ wrap.classList.add('hidden'); return }
+      wrap.classList.remove('hidden');
+      const url = URL.createObjectURL(file);
+      if(file.type.startsWith('image/')){ const img=new Image(); img.src=url; img.alt=file.name; img.className='max-h-52 w-auto'; box.appendChild(img) }
+      else if(file.type.startsWith('video/')){ const v=document.createElement('video'); v.src=url; v.controls=true; v.className='w-full max-h-60'; box.appendChild(v) }
+      else if(file.type.startsWith('audio/')){ const a=document.createElement('audio'); a.src=url; a.controls=true; box.appendChild(a) }
+      else if(file.type==='application/pdf'){ const iframe=document.createElement('iframe'); iframe.src=url; iframe.className='w-full h-60'; box.appendChild(iframe) }
+      else if(file.type.startsWith('text/') || /json|xml/.test(file.type)){ const r=new FileReader(); r.onload=()=>{ const pre=document.createElement('pre'); pre.className='text-xs p-2 overflow-auto'; pre.textContent=String(r.result).slice(0,2000); box.appendChild(pre) }; r.readAsText(file) }
+      else{ box.innerHTML='<div class="text-xs p-3">No inline preview for this file type.</div>' }
+    }
+
+    /* ---------------- Pre-fill Receiver from URL ---------------- */
+    (function(){ const q=new URL(window.location.href).searchParams.get('id'); if(q){ $('receiverId').value=q; toast('info','ID from URL', q); startReceive(q) } })();
+
+    /* ---------------- Rate limit (basic) ---------------- */
+    const LAST_SEND='rds-last-send';
+
+    /* ---------------- Sender actions ---------------- */
+    $('genId').onclick=()=>{ const id=randomId(8); $('senderId').value=id; copy(id); setShareLink(id) };
+    $('copyId').onclick=()=>{ const id=$('senderId').value.trim(); if(!id) return toast('err','No ID','Generate or type an ID'); copy(id); setShareLink(id) };
+    $('copyShare').onclick=()=>{ const v=$('shareLink').value; if(!v) return toast('err','No Link','Share link not ready'); copy(v) };
+    $('sysShare').onclick=()=>{ const v=$('shareLink').value; if(!v) return toast('err','No Link','Share link not ready'); if(navigator.share){ navigator.share({ title:'Realtime Data Share', text:'Open this link to receive the file', url:v }).catch(()=>{}) } else { toast('info','Share','System share not supported') } };
+
+    $('deleteBtn').onclick=async ()=>{
+      const id=$('senderId').value.trim(); if(!id) return toast('err','No ID','Type or generate an ID');
+      if(!confirm(`Delete data for ID \"${id}\"?`)) return;
+      try{ await remove(ref(db,'files/'+id)); toast('ok','Deleted',`Cleared ID ${id}`) }catch(e){ toast('err','Delete Failed', e.message||'Error') }
+    };
+
+    $('sendBtn').onclick = async ()=>{
+      const now=Date.now(); const last=Number(localStorage.getItem(LAST_SEND)||'0'); if(now-last<3000){ return toast('info','Slow down','Try again in a moment') };
+      const file=$('fileInput').files[0]; if(!file) return toast('err','File Missing','Please choose a file');
+      const MAX=10*1024*1024; if(file.size>MAX) return toast('err','Too Large',`Please upload ≤ 10 MB (yours ${asMB(file.size)})`);
+
+      let id=$('senderId').value.trim() || randomId(8); $('senderId').value=id;
+      const pass=$('passphrase').value.trim();
+      const expiryMs=parseInt($('expiry').value,10)||86400000; // default 1 day
+      const oneTime=$('oneTime').checked;
+
+      // Overwrite check
+      try{
+        const existing=(await get(ref(db,'files/'+id))).val();
+        if(existing){ const expired = existing.expiresAt && Date.now()>existing.expiresAt; if(!expired){ const ok=confirm(`Data already exists for ID \"${id}\". Overwrite?`); if(!ok) return; }
+        }
+      }catch(e){ /* ignore */ }
+
+      showLoader(true); $('progress').style.width='0%'; $('progress').setAttribute('aria-valuenow','0'); $('status').textContent='Preparing...';
+
+      const reader=new FileReader();
+      reader.onloadstart=()=>{ $('progress').style.width='10%'; $('progress').setAttribute('aria-valuenow','10') };
+      reader.onprogress=e=>{ if(e.lengthComputable){ const pct=Math.max(10, Math.round((e.loaded/e.total)*100)); $('progress').style.width = pct+'%'; $('progress').setAttribute('aria-valuenow', String(pct)) } };
+      reader.onload=async e=>{
+        try{
+          const arr=new Uint8Array(e.target.result);
+          const sha=await sha256(arr.buffer);
+          let payload;
+          if(pass){
+            $('status').textContent='Encrypting...';
+            const enc=await encryptBytes(arr, pass);
+            payload={ name:file.name, size:file.size, enc:true, cipher:enc.cipherB64, iv:enc.ivB64, salt:enc.saltB64, sha:enc.sha, time:new Date().toISOString(), expiresAt: Date.now()+expiryMs, oneTime, views:0 };
+          }else{
+            $('status').textContent='Encoding...';
+            const base64='data:'+ (file.type||'application/octet-stream') + ';base64,' + btoa(String.fromCharCode(...arr));
+            payload={ name:file.name, size:file.size, enc:false, data:base64, sha, time:new Date().toISOString(), expiresAt: Date.now()+expiryMs, oneTime, views:0 };
+          }
+
+          $('status').textContent='Uploading...';
+          await set(ref(db, 'files/'+id), payload);
+
+          $('status').innerHTML=`✅ <b>${file.name}</b> sent with ID: <b>${id}</b> <span class="pill">SHA: ${sha.slice(0,10)}…</span>`;
+          $('progress').style.width='100%'; $('progress').setAttribute('aria-valuenow','100');
+          setShareLink(id);
+          toast('ok','Sent Successfully',`ID: ${id}`);
+          addSent({ id, name:file.name, time:new Date().toLocaleString(), size:asMB(file.size), link:location.origin+location.pathname+'?id='+id, enc:!!pass });
+          localStorage.setItem(LAST_SEND, String(Date.now()));
+        }catch(err){ console.error(err); toast('err','Send Failed', err.message||'Error') }
+        finally{ showLoader(false) }
+      };
+      reader.readAsArrayBuffer(file);
+    };
+
+    /* ---------------- Receiver actions ---------------- */
+    $('openBtn').onclick=()=>{ const id=$('receiverId').value.trim(); if(!id) return toast('err','ID Missing','Type an ID first'); startReceive(id) };
+    $('stopBtn').onclick=()=>{ stopReceive(); toast('info','Stopped','Listener turned off') };
+
+    let currentRef=null; let unsub=null; let countdownTimer=null;
+
+    function stopReceive(){ if(currentRef){ off(currentRef); currentRef=null } if(unsub){ unsub(); unsub=null } if(countdownTimer){ clearInterval(countdownTimer); countdownTimer=null } $('countdown').classList.add('hidden') }
+
+    function startCountdown(expiresAt){ const left=()=>Math.max(0, expiresAt-Date.now()); const el=$('countdown'); el.classList.remove('hidden'); const tick=()=>{ const ms=left(); if(ms<=0){ el.textContent='⏰ Link expired'; clearInterval(countdownTimer); countdownTimer=null; return } const m=Math.floor(ms/60000), s=Math.floor((ms%60000)/1000); el.textContent=`⏳ Expires in ${m}m ${s}s`; }; tick(); countdownTimer=setInterval(tick,1000); }
+
+    async function startReceive(id){
+      const box=$('receiveBox'); box.innerHTML=`<div class="text-sm opacity-80">⏳ Listening for <b>${id}</b>...</div>`;
+      stopReceive();
+      currentRef = ref(db, 'files/'+id);
+
+      onValue(currentRef, async snap=>{
+        const data=snap.val();
+        if(!data){ box.innerHTML = `<div class="text-red-600 dark:text-red-400 font-semibold animate__animated animate__shakeX">❌ No file for this ID</div>`; return }
+
+        if(data.expiresAt){ startCountdown(data.expiresAt); if(Date.now()>data.expiresAt){ box.innerHTML=`<div class="text-red-600 dark:text-red-400 font-semibold">⏰ Link expired</div>`; return } }
+
+        // Build UI
+        const infoHTML = `
+          <div class="font-semibold mb-1">📄 ${data.name} <span class="text-xs opacity-70">(${asMB(data.size||0)})</span> ${data.enc?'<span class="text-xs ml-1 px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200">E2E</span>':''}</div>
+          <div class="text-xs opacity-70 mb-3">⏱ ${new Date(data.time).toLocaleString()} • ID: ${id} ${typeof data.views==='number'?`• Views: ${data.views}`:''}</div>`;
+
+        const actionsHTML = `
+          <div class="flex flex-wrap gap-2">
+            <a id="dl" class="btn btn-blue px-4 py-2 text-white" href="#">⬇ Download</a>
+            <button id="previewBtn" class="btn btn-light px-4 py-2">👀 Preview</button>
+            <button id="copyLink" class="btn btn-light px-4 py-2">Copy Data URL</button>
+            <button id="verifyBtn" class="btn btn-light px-4 py-2">Verify SHA-256</button>
+          </div>`;
+
+        box.innerHTML = `<div class="p-4 rounded-xl bg-white dark:bg-gray-900 shadow animate__animated animate__fadeInUp">${infoHTML}${actionsHTML}<div id="previewArea" class="mt-3"></div><p id="verifyOut" class="text-xs mt-2 opacity-80"></p></div>`;
+
+        const pass = $('recvPass').value.trim();
+
+        async function getBlob(){
+          if(data.enc){
+            if(!pass){ toast('err','Passphrase Required','Enter passphrase to decrypt'); return null }
+            try{ const bytes=await decryptToBytes(data.cipher, pass, data.iv, data.salt); return new Blob([bytes]) }catch(e){ toast('err','Decrypt Failed','Wrong passphrase or corrupted data'); return null }
+          } else {
+            // convert data URL to blob
+            try{ const b64=data.data.split(',')[1]; const bin=atob(b64); const arr=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i); return new Blob([arr]) }catch(e){ return null }
+          }
+        }
+
+        function guessMime(){
+          if(!data.enc && data.data?.startsWith('data:')){ return data.data.split(';')[0].slice(5) }
+          // fallback
+          const name = (data.name||'').toLowerCase();
+          if(name.endsWith('.png')) return 'image/png';
+          if(name.endsWith('.jpg')||name.endsWith('.jpeg')) return 'image/jpeg';
+          if(name.endsWith('.gif')) return 'image/gif';
+          if(name.endsWith('.pdf')) return 'application/pdf';
+          if(name.endsWith('.mp4')) return 'video/mp4';
+          if(name.endsWith('.mp3')) return 'audio/mpeg';
+          if(name.endsWith('.wav')) return 'audio/wav';
+          if(name.endsWith('.txt')) return 'text/plain';
+          if(name.endsWith('.json')) return 'application/json';
+          return 'application/octet-stream';
+        }
+
+        async function buildObjectURL(){ const blob=await getBlob(); if(!blob) return null; const type=guessMime(); return URL.createObjectURL(blob.slice(0, blob.size, type)) }
+
+        $('dl').onclick=async (ev)=>{
+          ev.preventDefault();
+          const url=await buildObjectURL(); if(!url) return;
+          const a=document.createElement('a'); a.href=url; a.download=data.name||'download'; document.body.appendChild(a); a.click(); a.remove();
+          URL.revokeObjectURL(url);
+          toast('ok','Download Started','Your download is starting…');
+          addRecv({ id, name:data.name, time:new Date().toLocaleString(), link:location.origin+location.pathname+'?id='+id, enc:!!data.enc });
+          try{ // bump views
+            const snap=await get(currentRef); const val=snap.val(); if(val){ val.views=(val.views||0)+1; await set(currentRef, val) }
+          }catch(e){}
+          if(data.oneTime){ try{ await remove(currentRef) }catch(e){} }
+        };
+
+        $('previewBtn').onclick=async ()=>{
+          const area=$('previewArea'); area.innerHTML='';
+          const url=await buildObjectURL(); if(!url) return;
+          const mime=guessMime();
+          if(mime.startsWith('image/')){ const img=new Image(); img.src=url; img.alt=data.name; img.className='max-h-64 w-auto rounded-lg shadow'; area.appendChild(img) }
+          else if(mime==='application/pdf'){ const ifr=document.createElement('iframe'); ifr.src=url; ifr.className='w-full h-72 rounded-lg'; area.appendChild(ifr) }
+          else if(mime.startsWith('video/')){ const v=document.createElement('video'); v.src=url; v.controls=true; v.className='w-full max-h-72 rounded-lg'; area.appendChild(v) }
+          else if(mime.startsWith('audio/')){ const a=document.createElement('audio'); a.src=url; a.controls=true; area.appendChild(a) }
+          else { const a=document.createElement('a'); a.href=url; a.textContent='Open preview'; a.target='_blank'; area.appendChild(a) }
+        };
+
+        $('copyLink').onclick=async ()=>{ if(data.enc){ toast('info','Encrypted','Decrypt and download instead'); return } copy(data.data) };
+
+        $('verifyBtn').onclick=async ()=>{
+          try{
+            let bytes;
+            if(data.enc){ if(!pass) return toast('err','Passphrase Required','Enter passphrase to verify'); bytes=await decryptToBytes(data.cipher, pass, data.iv, data.salt) }
+            else { const base64=data.data.split(',')[1]; const bin=atob(base64); const arr=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i); bytes=arr }
+            const h=await sha256(bytes.buffer);
+            $('verifyOut').textContent = h===data.sha ? '✅ Hash verified (SHA-256 matches)' : '❌ Hash mismatch';
+          }catch(e){ $('verifyOut').textContent='❌ Verification error' }
+        };
+      });
+    }
+
+    /* ---------------- Keyboard ---------------- */
+    window.addEventListener('keydown',e=>{ if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='i'){ e.preventDefault(); $('senderId').focus() } });
+  </script>
+
+  <!-- Notes: Secure your Firebase with strict rules, example (adjust as needed):
+  {
+    "rules": {
+      "files": {
+        "$id": {
+          ".read": true,
+          ".write": true,
+          ".validate": "newData.child('name').isString() && (newData.hasChildren(['data']) || newData.hasChildren(['cipher','iv','salt'])) && newData.child('expiresAt').val() <= now + 7 * 24 * 60 * 60 * 1000"
         }
       }
-
-      fileInput.value = '';
-      setMsg('Upload(s) finished.', 'ok');
-      listFiles();
-    };
-
-    function addProgressRow(name){
-      const row = document.createElement('div');
-      row.className = 'file-item';
-      row.id = 'up-' + name;
-      row.innerHTML = `
-        <div>⬆️ ${name}</div>
-        <div class="muted" data-status>uploading...</div>
-      `;
-      progressDiv.appendChild(row);
     }
-    function markProgress(name, ok, err=''){
-      const row = document.getElementById('up-' + name);
-      if (!row) return;
-      const st = row.querySelector('[data-status]');
-      if (ok) { st.textContent = 'done ✅'; st.className = 'ok'; }
-      else { st.textContent = 'error: ' + err; st.className = 'err'; }
-    }
-
-    // List files under uploads/<ID>/
-    async function listFiles(){
-      const id = idInput.value.trim();
-      if(!id){ filesDiv.innerHTML=''; return; }
-      filesDiv.innerHTML = '<div class="muted">Loading...</div>';
-
-      const { data, error } = await supabase.storage.from(BUCKET).list(id, { limit: 1000 });
-      if(error){ filesDiv.innerHTML=''; setMsg('List error: ' + error.message, 'err'); return; }
-      if(!data || data.length === 0){ filesDiv.innerHTML = '<div class="muted">No files yet.</div>'; return; }
-
-      // Build rows with public URLs
-      const rows = data.map(f => {
-        const fullPath = `${id}/${f.name}`;
-        const { data:pub } = supabase.storage.from(BUCKET).getPublicUrl(fullPath);
-        const url = pub?.publicUrl;
-        const size = f.size ?? f.metadata?.size; // depends on region / API
-        return `
-          <div class="file-item">
-            <div>📄 ${f.name} <span class="muted">(${fmtBytes(size)})</span></div>
-            <div class="grid">
-              <a href="${url}" download>Download</a>
-              <button data-del="${f.name}">Delete</button>
-            </div>
-          </div>
-        `;
-      });
-      filesDiv.innerHTML = rows.join('');
-      setMsg(`Found ${data.length} file(s) for ID ${id}.`, 'ok');
-
-      // attach delete handlers
-      [...filesDiv.querySelectorAll('button[data-del]')].forEach(btn => {
-        btn.addEventListener('click', () => deleteOne(id, btn.getAttribute('data-del')));
-      });
-    }
-    document.getElementById('refreshBtn').onclick = listFiles;
-
-    // Delete single file
-    async function deleteOne(id, name){
-      if(!confirm(`Delete ${name}?`)) return;
-      const { error } = await supabase.storage.from(BUCKET).remove([`${id}/${name}`]);
-      if(error){ setMsg('Delete error: ' + error.message, 'err'); return; }
-      setMsg(`Deleted ${name}.`,'ok');
-      listFiles();
-    }
-
-    // Delete all files for this ID
-    document.getElementById('clearBtn').onclick = async () => {
-      const id = idInput.value.trim();
-      if(!id) return setMsg('Enter ID first','err');
-      if(!confirm(`Delete ALL files for ID ${id}?`)) return;
-
-      const { data:list, error:e1 } = await supabase.storage.from(BUCKET).list(id, { limit: 1000 });
-      if(e1){ setMsg('List error: '+e1.message,'err'); return; }
-      if(!list || list.length === 0){ setMsg('Nothing to clear.','ok'); filesDiv.innerHTML=''; return; }
-
-      const paths = list.map(f => `${id}/${f.name}`);
-      const { error:e2 } = await supabase.storage.from(BUCKET).remove(paths);
-      if(e2){ setMsg('Delete error: '+e2.message,'err'); return; }
-      setMsg('✅ Cleared.','ok');
-      filesDiv.innerHTML = '';
-    };
-  </script>
+  }
+  Consider adding App Check, auth, and rate limits in production.
+  -->
 </body>
 </html>
