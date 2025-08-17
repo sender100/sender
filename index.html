@@ -1,361 +1,678 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>⚡ ID Data Share — Receiver Login</title>
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { motion } from "framer-motion";
+import { Copy, Link as LinkIcon, Lock, LogIn, LogOut, Send, ShieldCheck, Trash2, Eye, Timer, CheckCircle2, XCircle, Search, StopCircle } from "lucide-react";
+import { initializeApp } from "firebase/app";
+import { getDatabase, ref as dbRef, set, onValue, off, remove, get } from "firebase/database";
+import { getAuth, onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut } from "firebase/auth";
 
-<!-- Tailwind -->
-<script src="https://cdn.tailwindcss.com"></script>
-<!-- Animate.css -->
-<link href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" rel="stylesheet"/>
-<!-- Fonts -->
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet"/>
+// ===================
+// 🔧 Firebase Config
+// ===================
+// TODO: Replace with your real keys (or load from env)
+const firebaseConfig = {
+  apiKey: "AIzaSyYOUR_KEY",
+  authDomain: "your-project.firebaseapp.com",
+  databaseURL: "https://your-project-default-rtdb.firebaseio.com",
+  projectId: "your-project",
+  storageBucket: "your-project.appspot.com",
+  messagingSenderId: "0000000000",
+  appId: "1:0000000000:web:xxxxxxxxxxxxxx",
+};
 
-<style>
-  :root{ --indigo:#6366f1; --green:#10b981; --red:#ef4444; --blue:#3b82f6 }
-  body{ font-family:'Poppins',sans-serif; background:linear-gradient(120deg,#0ea5e9,#6366f1,#a855f7,#ec4899,#14b8a6); background-size:400% 400%; animation:move 18s ease infinite; min-height:100vh }
-  @keyframes move{0%{background-position:0 50%}50%{background-position:100% 50%}100%{background-position:0 50%}}
-  .glass{ backdrop-filter:blur(14px); background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.25) }
-  .card{ background:rgba(255,255,255,.96); border-radius:18px; box-shadow:0 24px 50px rgba(0,0,0,.2) }
-  .f{ border:1px solid rgba(0,0,0,.1); border-radius:14px; padding:.8rem }
-  .btn{ border-radius:14px; padding:.8rem 1rem; font-weight:700; color:#fff; cursor:pointer }
-  .b-indigo{ background:linear-gradient(135deg,#6366f1,#a855f7) }
-  .b-green{ background:linear-gradient(135deg,#10b981,#22c55e) }
-  .b-red{ background:linear-gradient(135deg,#ef4444,#f97316) }
-  .b-blue{ background:linear-gradient(135deg,#3b82f6,#06b6d4) }
-  .pill{ padding:.2rem .6rem; border-radius:999px; font-size:.7rem; background:#eef2ff; color:#4f46e5 }
-</style>
-</head>
-<body>
-  <div class="glass max-w-6xl mx-auto my-8 p-6 md:p-10 rounded-3xl animate__animated animate__fadeIn">
-    <div class="flex items-center justify-between mb-6">
-      <h1 class="text-3xl md:text-4xl font-extrabold text-white drop-shadow">⚡ ID Data Share — Receiver Login</h1>
-      <span class="hidden md:inline pill">Text-only • E2E-Ready</span>
-    </div>
+// Singletons
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
 
-    <div class="grid md:grid-cols-2 gap-6">
-      <!-- Sender (no login required) -->
-      <div class="card p-6">
-        <h2 class="text-2xl font-bold text-indigo-600 mb-3">📤 Sender</h2>
-        <div class="space-y-3">
-          <div class="flex gap-2">
-            <input id="senderId" class="f flex-1" placeholder="Custom ID (optional)"/>
-            <button id="genId" class="btn b-indigo">Generate</button>
-            <button id="copyId" class="btn b-blue">Copy</button>
+// ===================
+// 🔐 Crypto helpers
+// ===================
+const enc = new TextEncoder();
+const dec = new TextDecoder();
+
+async function sha256(buf) {
+  const h = await crypto.subtle.digest("SHA-256", buf);
+  return btoa(String.fromCharCode(...new Uint8Array(h)));
+}
+
+function b642ab(b64) {
+  const bin = atob(b64);
+  const buf = new ArrayBuffer(bin.length);
+  const v = new Uint8Array(buf);
+  for (let i = 0; i < bin.length; i++) v[i] = bin.charCodeAt(i);
+  return buf;
+}
+
+function ab2b64(buf) {
+  let s = "";
+  const v = new Uint8Array(buf);
+  for (let i = 0; i < v.length; i++) s += String.fromCharCode(v[i]);
+  return btoa(s);
+}
+
+async function deriveKey(pass, salt) {
+  const mat = await crypto.subtle.importKey("raw", enc.encode(pass), "PBKDF2", false, [
+    "deriveKey",
+  ]);
+  return crypto.subtle.deriveKey(
+    { name: "PBKDF2", salt, iterations: 150_000, hash: "SHA-256" },
+    mat,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt", "decrypt"]
+  );
+}
+
+async function encryptText(text, pass) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await deriveKey(pass, salt);
+  const cipher = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, enc.encode(text));
+  const sha = await sha256(enc.encode(text));
+  return { cipherB64: ab2b64(cipher), ivB64: ab2b64(iv), saltB64: ab2b64(salt), sha };
+}
+
+async function decryptText(cipherB64, pass, ivB64, saltB64) {
+  const key = await deriveKey(pass, new Uint8Array(b642ab(saltB64)));
+  const plain = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: new Uint8Array(b642ab(ivB64)) },
+    key,
+    b642ab(cipherB64)
+  );
+  return dec.decode(plain);
+}
+
+// ===================
+// 🧰 UI utilities
+// ===================
+function cx(...args) {
+  return args.filter(Boolean).join(" ");
+}
+
+function toast(msg, type = "info") {
+  const c = type === "ok" ? "#10b981" : type === "err" ? "#ef4444" : "#3b82f6";
+  const el = document.createElement("div");
+  el.textContent = msg;
+  el.style.cssText = `position:fixed;right:12px;top:12px;background:${c};color:#fff;padding:8px 12px;border-radius:10px;box-shadow:0 8px 20px rgba(0,0,0,.2);z-index:9999;`;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 1800);
+}
+
+const HSENT = "ids-text-sent";
+const HREC = "ids-text-recv";
+const getH = (k) => {
+  try {
+    return JSON.parse(localStorage.getItem(k) || "[]");
+  } catch {
+    return [];
+  }
+};
+const putH = (k, v) => localStorage.setItem(k, JSON.stringify(v));
+
+function randomId(n = 8) {
+  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+  return Array.from({ length: n }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+}
+
+function FancyCard({ title, subtitle, icon, children, right }) {
+  return (
+    <div className="bg-white/95 rounded-2xl shadow-xl border p-5">
+      <div className="flex items-start justify-between mb-3">
+        <div>
+          <div className="flex items-center gap-2">
+            {icon}
+            <h3 className="text-xl font-bold">{title}</h3>
           </div>
-          <textarea id="dataText" class="f w-full h-44" placeholder="यहाँ अपना टेक्स्ट/डाटा लिखें…"></textarea>
-          <div class="grid grid-cols-2 gap-3">
-            <input id="passphrase" class="f" placeholder="Passphrase (optional E2E)"/>
-            <select id="expiry" class="f">
-              <option value="0">No expiry</option>
-              <option value="600000">10 min</option>
-              <option value="3600000">1 hour</option>
-              <option value="86400000">1 day</option>
-              <option value="604800000">7 days</option>
-            </select>
-          </div>
-          <label class="inline-flex items-center gap-2 text-sm">
-            <input id="oneTime" type="checkbox"> Delete after first view (one-time)
-          </label>
-          <div class="grid grid-cols-2 gap-3">
-            <button id="sendBtn" class="btn b-indigo w-full">🚀 Send</button>
-            <button id="delBtn" class="btn b-red w-full">🗑️ Delete ID</button>
-          </div>
-          <div>
-            <div id="status" class="text-sm"></div>
-            <div id="shareWrap" class="hidden mt-3">
-              <label class="text-sm">Shareable link</label>
-              <div class="flex gap-2 mt-1">
-                <input id="shareLink" class="f flex-1" readonly>
-                <button id="copyShare" class="btn b-blue">Copy Link</button>
-              </div>
-            </div>
-          </div>
+          {subtitle && <div className="text-xs opacity-70 mt-1">{subtitle}</div>}
         </div>
+        {right}
       </div>
-
-      <!-- Receiver (login required) -->
-      <div class="card p-6">
-        <h2 class="text-2xl font-bold text-green-600 mb-3">📥 Receiver</h2>
-
-        <!-- Auth box -->
-        <div id="authBox" class="p-4 border rounded-xl mb-4">
-          <div class="flex items-center justify-between">
-            <div>
-              <div class="font-semibold">Login required to receive</div>
-              <div id="authState" class="text-xs opacity-70">Not signed in</div>
-            </div>
-            <div class="flex gap-2">
-              <button id="loginBtn" class="btn b-green">Sign in with Google</button>
-              <button id="logoutBtn" class="btn b-red hidden">Sign out</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="space-y-3 opacity-60 pointer-events-none" id="recvWrap">
-          <div class="flex gap-2">
-            <input id="receiverId" class="f flex-1" placeholder="Enter ID to receive"/>
-            <button id="openBtn" class="btn b-green">🔍 Open</button>
-            <button id="stopBtn" class="btn b-blue">✋ Stop</button>
-          </div>
-          <input id="recvPass" class="f" placeholder="Passphrase (if encrypted)"/>
-          <div id="countdown" class="text-xs opacity-75 hidden"></div>
-
-          <div id="outCard" class="p-4 border rounded-xl hidden">
-            <div class="flex items-center justify-between mb-2">
-              <div class="font-semibold">Data <span id="meta" class="pill ml-2"></span></div>
-              <div class="text-xs opacity-70" id="meta2"></div>
-            </div>
-            <pre id="out" class="whitespace-pre-wrap break-words text-sm"></pre>
-            <div class="mt-3 flex flex-wrap gap-2">
-              <button id="copyData" class="btn b-blue">Copy Data</button>
-              <button id="verifyBtn" class="btn b-blue">Verify SHA-256</button>
-            </div>
-            <div id="verifyOut" class="text-xs opacity-80 mt-2"></div>
-          </div>
-        </div>
-        <div id="recvHint" class="text-xs opacity-70">Login करें, फिर ID डालकर “Open” दबाएँ।</div>
-      </div>
+      {children}
     </div>
+  );
+}
 
-    <!-- History -->
-    <div class="card p-6 mt-6">
-      <h2 class="text-2xl font-bold text-blue-600 mb-4">📜 History</h2>
-      <div class="flex gap-2 mb-3">
-        <button id="tabSent" class="btn b-blue">Sent</button>
-        <button id="tabRecv" class="btn b-blue">Received</button>
-        <button id="clearHist" class="btn b-red">Clear Local</button>
-      </div>
-      <div id="histList" class="space-y-2 max-h-72 overflow-auto pr-1"></div>
-    </div>
-  </div>
+function Pill({ children }) {
+  return <span className="px-2 py-0.5 rounded-full text-xs bg-indigo-50 text-indigo-700">{children}</span>;
+}
 
-  <!-- Firebase v11 (ES Modules) -->
-  <script type="module">
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js';
-    import { getDatabase, ref, set, onValue, off, remove, get } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-database.js';
-    import { getAuth, onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js';
+// ===================
+// 🚀 Main App
+// ===================
+export default function App() {
+  const [senderId, setSenderId] = useState("");
+  const [dataText, setDataText] = useState("");
+  const [passphrase, setPassphrase] = useState("");
+  const [expiry, setExpiry] = useState("0");
+  const [oneTime, setOneTime] = useState(false);
+  const [status, setStatus] = useState("");
+  const [shareUrl, setShareUrl] = useState("");
 
-    // ====== PUT YOUR REAL CONFIG ======
-    const firebaseConfig = {
-      apiKey: 'AIzaSyYOUR_KEY',
-      authDomain: 'your-project.firebaseapp.com',
-      databaseURL: 'https://your-project-default-rtdb.firebaseio.com',
-      projectId: 'your-project',
-      storageBucket: 'your-project.appspot.com',
-      messagingSenderId: '0000000000',
-      appId: '1:0000000000:web:xxxxxxxxxxxxxx'
-    };
+  const [receiverId, setReceiverId] = useState("");
+  const [recvPass, setRecvPass] = useState("");
+  const [recvText, setRecvText] = useState("");
+  const [meta, setMeta] = useState({ kind: "", views: 0, id: "" });
+  const [countdown, setCountdown] = useState("");
+  const [isSignedIn, setIsSignedIn] = useState(false);
 
-    const app = initializeApp(firebaseConfig);
-    const db  = getDatabase(app);
-    const auth = getAuth(app);
-    const provider = new GoogleAuthProvider();
+  const [histTab, setHistTab] = useState("sent");
+  const [hist, setHist] = useState({ sent: getH(HSENT), recv: getH(HREC) });
 
-    // ---------- Utils ----------
-    const $ = id => document.getElementById(id);
-    const toast = (msg,type='info') => {
-      const c=type==='ok'?'#10b981':type==='err'?'#ef4444':'#3b82f6';
-      const el=document.createElement('div');
-      el.textContent=msg;
-      el.style.cssText=`position:fixed;right:12px;top:12px;background:${c};color:#fff;padding:8px 12px;border-radius:10px;box-shadow:0 8px 20px rgba(0,0,0,.2);z-index:9999;`;
-      document.body.appendChild(el); setTimeout(()=>el.remove(),1800);
-    };
-    const randomId=n=>Array.from({length:n||8},()=> 'abcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random()*36)]).join('');
-    const setShareLink=(id)=>{ const u=new URL(location.href); u.searchParams.set('id',id); $('shareLink').value=u.toString(); $('shareWrap').classList.remove('hidden') };
+  const subRef = useRef(null); // for db subscription
+  const countdownTimer = useRef(null);
 
-    // ---------- History ----------
-    const HSENT='ids-text-sent', HREC='ids-text-recv';
-    const getH=k=>{try{return JSON.parse(localStorage.getItem(k)||'[]')}catch{return[]}};
-    const putH=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
-    let tab='sent';
-    function renderHist(){
-      const box=$('histList'); box.innerHTML='';
-      const data=tab==='sent'?getH(HSENT):getH(HREC);
-      if(!data.length){ box.innerHTML='<div class="text-sm opacity-70">Empty</div>'; return}
-      data.slice(0,200).forEach(d=>{
-        const row=document.createElement('div');
-        row.className='p-2 rounded-lg border flex items-center justify-between bg-white';
-        row.innerHTML=`<div><div class="font-semibold">${d.title}</div><div class="text-xs opacity-70">${d.time} • ID: ${d.id}</div></div>
-        <div class="flex gap-2">
-          <button class="btn b-blue" onclick="navigator.clipboard.writeText('${d.id}')">Copy ID</button>
-          <a class="btn b-blue" target="_blank" href="${location.origin+location.pathname}?id=${d.id}">Open</a>
-        </div>`;
-        box.appendChild(row);
-      });
+  // Prefill from URL ?id=...
+  useEffect(() => {
+    const u = new URL(window.location.href);
+    const q = u.searchParams.get("id");
+    if (q) {
+      setReceiverId(q);
+      toast("ID from URL");
     }
-    $('tabSent').onclick=()=>{tab='sent';renderHist()}
-    $('tabRecv').onclick=()=>{tab='recv';renderHist()}
-    $('clearHist').onclick=()=>{ localStorage.removeItem(HSENT); localStorage.removeItem(HREC); renderHist(); toast('Local cleared','ok') }
-    renderHist();
+  }, []);
 
-    // ---------- Crypto (text) ----------
-    const enc = new TextEncoder(), dec = new TextDecoder();
-    async function sha256(buf){ const h=await crypto.subtle.digest('SHA-256', buf); return btoa(String.fromCharCode(...new Uint8Array(h))) }
-    function b642ab(b64){ const bin=atob(b64); const buf=new ArrayBuffer(bin.length); const v=new Uint8Array(buf); for(let i=0;i<bin.length;i++) v[i]=bin.charCodeAt(i); return buf }
-    function ab2b64(buf){ let s=''; const v=new Uint8Array(buf); for(let i=0;i<v.length;i++) s+=String.fromCharCode(v[i]); return btoa(s) }
-    async function deriveKey(pass,salt){
-      const mat=await crypto.subtle.importKey('raw', enc.encode(pass), 'PBKDF2', false, ['deriveKey']);
-      return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:150000,hash:'SHA-256'}, mat, {name:'AES-GCM',length:256}, false, ['encrypt','decrypt']);
-    }
-    async function encryptText(text,pass){
-      const salt=crypto.getRandomValues(new Uint8Array(16));
-      const iv=crypto.getRandomValues(new Uint8Array(12));
-      const key=await deriveKey(pass,salt);
-      const cipher=await crypto.subtle.encrypt({name:'AES-GCM',iv}, key, enc.encode(text));
-      const sha=await sha256(enc.encode(text));
-      return {cipherB64:ab2b64(cipher), ivB64:ab2b64(iv), saltB64:ab2b64(salt), sha};
-    }
-    async function decryptText(cipherB64,pass,ivB64,saltB64){
-      const key=await deriveKey(pass,new Uint8Array(b642ab(saltB64)));
-      const plain=await crypto.subtle.decrypt({name:'AES-GCM',iv:new Uint8Array(b642ab(ivB64))}, key, b642ab(cipherB64));
-      return dec.decode(plain);
-    }
-
-    // ---------- Auth UI handling ----------
-    const recvWrap = $('recvWrap');
-    const recvHint = $('recvHint');
-    const authStateEl = $('authState');
-    function setRecvEnabled(on){
-      recvWrap.style.opacity = on? '1' : '0.6';
-      recvWrap.style.pointerEvents = on? 'auto' : 'none';
-      $('logoutBtn').classList.toggle('hidden', !on);
-      $('loginBtn').classList.toggle('hidden', on);
-      authStateEl.textContent = on? 'Signed in' : 'Not signed in';
-    }
-    setRecvEnabled(false);
-
-    $('loginBtn').onclick = async ()=>{
-      try{ await signInWithPopup(auth, provider); toast('Signed in','ok') }catch(e){ toast('Login failed','err') }
-    };
-    $('logoutBtn').onclick = async ()=>{
-      try{ await signOut(auth); toast('Signed out','ok') }catch(e){ toast('Signout failed','err') }
-    };
-
-    onAuthStateChanged(auth, user=>{
-      setRecvEnabled(!!user);
-      if(user && $('receiverId').value.trim()){ startReceive($('receiverId').value.trim()); }
+  // Auth state
+  useEffect(() => {
+    return onAuthStateChanged(auth, (user) => {
+      setIsSignedIn(!!user);
+      if (user && receiverId.trim()) startReceive(receiverId.trim());
     });
+  }, [receiverId]);
 
-    // ---------- Pre-fill ID from URL ----------
-    (function(){ const q=new URL(location.href).searchParams.get('id'); if(q){ $('receiverId').value=q; toast('ID from URL') } })();
+  // Cleanup on unmount
+  useEffect(() => () => stopReceive(), []);
 
-    // ---------- Sender ----------
-    $('genId').onclick=()=>{ const id=randomId(8); $('senderId').value=id; navigator.clipboard.writeText(id); setShareLink(id); toast('ID generated','ok') };
-    $('copyId').onclick=()=>{ const id=$('senderId').value.trim(); if(!id) return toast('No ID','err'); navigator.clipboard.writeText(id); setShareLink(id); toast('Copied','ok') };
-    $('copyShare').onclick=()=>{ const v=$('shareLink').value; if(!v) return toast('No link','err'); navigator.clipboard.writeText(v); toast('Link copied','ok') };
+  function setShareLink(id) {
+    const u = new URL(window.location.href);
+    u.searchParams.set("id", id);
+    setShareUrl(u.toString());
+  }
 
-    $('delBtn').onclick=async ()=>{
-      const id=$('senderId').value.trim(); if(!id) return toast('No ID','err');
-      if(!confirm(`Delete data for ID "${id}"?`)) return;
-      try{ await remove(ref(db,'texts/'+id)); toast('Deleted','ok') }catch(e){ toast('Delete failed','err') }
-    };
+  function renderHist() {
+    setHist({ sent: getH(HSENT), recv: getH(HREC) });
+  }
 
-    $('sendBtn').onclick=async ()=>{
-      const text=$('dataText').value; if(!text.trim()) return toast('Write some data','err');
-      let id=$('senderId').value.trim() || randomId(8); $('senderId').value=id;
-      const pass=$('passphrase').value.trim();
-      const expiryMs=parseInt($('expiry').value,10)||0;
-      const oneTime=$('oneTime').checked;
-
-      try{
-        const existing=(await get(ref(db,'texts/'+id))).val();
-        if(existing){ const expired = existing.expiresAt && Date.now()>existing.expiresAt; if(!expired){ const ok=confirm(`Data already exists for ID "${id}". Overwrite?`); if(!ok) return; } }
-      }catch{}
-
-      $('status').textContent='Processing...';
-      try{
-        let payload, sha;
-        if(pass){
-          const encPack=await encryptText(text,pass);
-          payload={ enc:true, cipher:encPack.cipherB64, iv:encPack.ivB64, salt:encPack.saltB64, sha:encPack.sha, time:new Date().toISOString(), expiresAt: expiryMs? (Date.now()+expiryMs):null, oneTime, views:0 };
-          sha=encPack.sha;
-        }else{
-          const bytes=enc.encode(text);
-          sha=await sha256(bytes);
-          payload={ enc:false, data:text, sha, time:new Date().toISOString(), expiresAt: expiryMs? (Date.now()+expiryMs):null, oneTime, views:0 };
-        }
-        await set(ref(db,'texts/'+id), payload);
-        $('status').innerHTML=`✅ Sent with ID <b>${id}</b> <span class="pill">SHA: ${sha.slice(0,10)}…</span>`;
-        setShareLink(id);
-        const arr=getH(HSENT); arr.unshift({id, title:(text.split('\n')[0]||'Data').slice(0,40), time:new Date().toLocaleString()}); putH(HSENT,arr); renderHist();
-        toast('Sent','ok');
-      }catch(e){ console.error(e); toast('Send failed','err') }
-    };
-
-    // ---------- Receiver (requires auth) ----------
-    $('openBtn').onclick=()=>{ if(!auth.currentUser){ return toast('Login first','err') } const id=$('receiverId').value.trim(); if(!id) return toast('Enter ID','err'); startReceive(id) };
-    $('stopBtn').onclick=()=>{ stopReceive(); toast('Stopped') };
-
-    let currentRef=null, countdownTimer=null;
-    function stopReceive(){ if(currentRef){ off(currentRef); currentRef=null } if(countdownTimer){ clearInterval(countdownTimer); countdownTimer=null } $('countdown').classList.add('hidden') }
-    function startCountdown(expiresAt){
-      const el=$('countdown'); el.classList.remove('hidden');
-      const tick=()=>{ const ms=Math.max(0,expiresAt-Date.now()); if(ms<=0){ el.textContent='⏰ Link expired'; clearInterval(countdownTimer); countdownTimer=null; } else { const m=Math.floor(ms/60000), s=Math.floor((ms%60000)/1000); el.textContent=`⏳ Expires in ${m}m ${s}s`; } };
-      tick(); countdownTimer=setInterval(tick,1000);
+  function stopReceive() {
+    if (subRef.current) {
+      off(subRef.current);
+      subRef.current = null;
     }
-
-    async function startReceive(id){
-      if(!auth.currentUser){ toast('Login required','err'); return }
-      stopReceive();
-      $('outCard').classList.add('hidden');
-      $('out').textContent='';
-      currentRef=ref(db,'texts/'+id);
-      onValue(currentRef, async snap=>{
-        const data=snap.val();
-        if(!data){ $('outCard').classList.add('hidden'); toast('No data for this ID','err'); return }
-        if(data.expiresAt){ startCountdown(data.expiresAt); if(Date.now()>data.expiresAt){ $('outCard').classList.add('hidden'); return } }
-
-        let text=''; const pass=$('recvPass').value.trim();
-        try{
-          if(data.enc){
-            if(!pass){ toast('Passphrase required','err'); return }
-            text = await decryptText(data.cipher, pass, data.iv, data.salt);
-          }else{
-            text = data.data||'';
-          }
-        }catch(e){ toast('Decrypt failed','err'); return }
-
-        $('outCard').classList.remove('hidden');
-        $('out').textContent=text;
-        $('meta').textContent = data.enc? 'E2E' : 'Plain';
-        $('meta2').textContent = `ID: ${id} • Views: ${data.views||0}`;
-
-        $('copyData').onclick=()=>{ navigator.clipboard.writeText(text); toast('Copied','ok') };
-        $('verifyBtn').onclick=async ()=>{
-          const h=await sha256(enc.encode(text));
-          $('verifyOut').textContent = h===data.sha ? '✅ Hash verified (SHA-256 matches)' : '❌ Hash mismatch';
-        };
-
-        try{
-          const snap2=await get(currentRef);
-          const val=snap2.val(); if(val){ val.views=(val.views||0)+1; await set(currentRef,val) }
-        }catch{}
-        if(data.oneTime){ try{ await remove(currentRef) }catch{} }
-
-        const arr=getH(HREC); arr.unshift({id, title:(text.split('\n')[0]||'Data').slice(0,40), time:new Date().toLocaleString()}); putH(HREC,arr); renderHist();
-      });
+    if (countdownTimer.current) {
+      clearInterval(countdownTimer.current);
+      countdownTimer.current = null;
     }
-  </script>
+    setCountdown("");
+  }
 
-  <!-- Realtime Database Rules (must set in Firebase Console)
-  {
-    "rules": {
-      "texts": {
-        "$id": {
-          // Receiver must be logged in to read:
-          ".read": "auth != null",
-          // Sender can write without login (या चाहें तो 'auth != null' कर दें):
-          ".write": true,
-          ".validate": "
-            (newData.hasChildren(['data']) || newData.hasChildren(['cipher','iv','salt'])) &&
-            newData.child('time').isString()
-          "
+  function startCountdown(expiresAt) {
+    const tick = () => {
+      const ms = Math.max(0, expiresAt - Date.now());
+      if (ms <= 0) {
+        setCountdown("⏰ Link expired");
+        clearInterval(countdownTimer.current);
+        countdownTimer.current = null;
+      } else {
+        const m = Math.floor(ms / 60000);
+        const s = Math.floor((ms % 60000) / 1000);
+        setCountdown(`⏳ Expires in ${m}m ${s}s`);
+      }
+    };
+    tick();
+    countdownTimer.current = setInterval(tick, 1000);
+  }
+
+  async function handleSend() {
+    const text = dataText;
+    if (!text.trim()) return toast("Write some data", "err");
+    let id = (senderId || randomId(8)).trim();
+    setSenderId(id);
+    const pass = passphrase.trim();
+    const expiryMs = parseInt(expiry, 10) || 0;
+
+    try {
+      const existing = (await get(dbRef(db, "texts/" + id))).val();
+      if (existing) {
+        const expired = existing.expiresAt && Date.now() > existing.expiresAt;
+        if (!expired) {
+          const ok = window.confirm(`Data already exists for ID "${id}". Overwrite?`);
+          if (!ok) return;
         }
       }
+    } catch {}
+
+    setStatus("Processing...");
+
+    try {
+      let payload, sha;
+      if (pass) {
+        const encPack = await encryptText(text, pass);
+        payload = {
+          enc: true,
+          cipher: encPack.cipherB64,
+          iv: encPack.ivB64,
+          salt: encPack.saltB64,
+          sha: encPack.sha,
+          time: new Date().toISOString(),
+          expiresAt: expiryMs ? Date.now() + expiryMs : null,
+          oneTime,
+          views: 0,
+        };
+        sha = encPack.sha;
+      } else {
+        const bytes = enc.encode(text);
+        sha = await sha256(bytes);
+        payload = {
+          enc: false,
+          data: text,
+          sha,
+          time: new Date().toISOString(),
+          expiresAt: expiryMs ? Date.now() + expiryMs : null,
+          oneTime,
+          views: 0,
+        };
+      }
+
+      await set(dbRef(db, "texts/" + id), payload);
+      setStatus(`✅ Sent with ID ${id} — SHA: ${payload.sha.slice(0, 10)}…`);
+      setShareLink(id);
+      try {
+        await navigator.clipboard.writeText(id);
+      } catch {}
+      const s = getH(HSENT);
+      s.unshift({ id, title: (text.split("\n")[0] || "Data").slice(0, 40), time: new Date().toLocaleString() });
+      putH(HSENT, s);
+      renderHist();
+      toast("Sent", "ok");
+    } catch (e) {
+      console.error(e);
+      toast("Send failed", "err");
+      setStatus("");
     }
   }
-  -->
-</body>
-</html>
+
+  async function handleDelete() {
+    const id = senderId.trim();
+    if (!id) return toast("No ID", "err");
+    if (!window.confirm(`Delete data for ID "${id}"?`)) return;
+    try {
+      await remove(dbRef(db, "texts/" + id));
+      toast("Deleted", "ok");
+    } catch (e) {
+      toast("Delete failed", "err");
+    }
+  }
+
+  async function startReceive(id) {
+    if (!auth.currentUser) return toast("Login required", "err");
+    stopReceive();
+    setRecvText("");
+    setMeta({ kind: "", views: 0, id: "" });
+
+    const r = dbRef(db, "texts/" + id);
+    subRef.current = r;
+    onValue(r, async (snap) => {
+      const data = snap.val();
+      if (!data) {
+        setRecvText("");
+        toast("No data for this ID", "err");
+        return;
+      }
+
+      if (data.expiresAt) {
+        startCountdown(data.expiresAt);
+        if (Date.now() > data.expiresAt) return;
+      }
+
+      let text = "";
+      const pass = recvPass.trim();
+      try {
+        if (data.enc) {
+          if (!pass) return toast("Passphrase required", "err");
+          text = await decryptText(data.cipher, pass, data.iv, data.salt);
+        } else {
+          text = data.data || "";
+        }
+      } catch (e) {
+        return toast("Decrypt failed", "err");
+      }
+
+      setRecvText(text);
+      setMeta({ kind: data.enc ? "E2E" : "Plain", views: data.views || 0, id });
+
+      try {
+        const snap2 = await get(r);
+        const val = snap2.val();
+        if (val) {
+          val.views = (val.views || 0) + 1;
+          await set(r, val);
+        }
+      } catch {}
+
+      if (data.oneTime) {
+        try {
+          await remove(r);
+        } catch {}
+      }
+
+      const s = getH(HREC);
+      s.unshift({ id, title: (text.split("\n")[0] || "Data").slice(0, 40), time: new Date().toLocaleString() });
+      putH(HREC, s);
+      renderHist();
+    });
+  }
+
+  // ==============
+  // JSX
+  // ==============
+  return (
+    <div className="min-h-screen bg-gradient-to-tr from-sky-500 via-indigo-500 via-50% to-fuchsia-500 bg-[length:400%_400%] animate-[spin_18s_linear_infinite] p-4 md:p-8">
+      <div className="max-w-6xl mx-auto space-y-6">
+        <header className="flex items-center justify-between text-white drop-shadow">
+          <div>
+            <h1 className="text-3xl md:text-4xl font-extrabold">⚡ ID Data Share — Receiver Login</h1>
+            <p className="text-sm opacity-80">Text-only • E2E-Ready</p>
+          </div>
+          <Pill>Professional UI</Pill>
+        </header>
+
+        <div className="grid md:grid-cols-2 gap-6">
+          {/* Sender */}
+          <FancyCard
+            title="Sender"
+            subtitle="Create or paste an ID, type your text, optionally encrypt, and send"
+            icon={<Send className="h-5 w-5 text-indigo-600" />}
+            right={
+              <div className="flex gap-2">
+                <button
+                  className="px-3 py-2 rounded-xl text-white font-semibold bg-gradient-to-br from-indigo-500 to-fuchsia-500 shadow"
+                  onClick={() => {
+                    const id = randomId(8);
+                    setSenderId(id);
+                    setShareLink(id);
+                    navigator.clipboard.writeText(id).catch(() => {});
+                    toast("ID generated", "ok");
+                  }}
+                >
+                  Generate
+                </button>
+                <button
+                  className="px-3 py-2 rounded-xl text-white font-semibold bg-gradient-to-br from-sky-500 to-cyan-500 shadow"
+                  onClick={() => {
+                    if (!senderId.trim()) return toast("No ID", "err");
+                    setShareLink(senderId.trim());
+                    navigator.clipboard.writeText(senderId.trim()).then(() => toast("Copied", "ok"));
+                  }}
+                >
+                  Copy ID
+                </button>
+              </div>
+            }
+          >
+            <div className="space-y-3">
+              <div className="grid grid-cols-[1fr_auto] gap-2">
+                <input
+                  value={senderId}
+                  onChange={(e) => setSenderId(e.target.value)}
+                  placeholder="Custom ID (optional)"
+                  className="border rounded-xl px-3 py-2"
+                />
+              </div>
+              <textarea
+                value={dataText}
+                onChange={(e) => setDataText(e.target.value)}
+                placeholder="यहाँ अपना टेक्स्ट/डाटा लिखें…"
+                className="border rounded-xl px-3 py-2 h-44 w-full"
+              />
+              <div className="grid grid-cols-2 gap-3">
+                <input
+                  value={passphrase}
+                  onChange={(e) => setPassphrase(e.target.value)}
+                  placeholder="Passphrase (optional E2E)"
+                  className="border rounded-xl px-3 py-2"
+                />
+                <select
+                  value={expiry}
+                  onChange={(e) => setExpiry(e.target.value)}
+                  className="border rounded-xl px-3 py-2"
+                >
+                  <option value="0">No expiry</option>
+                  <option value="600000">10 min</option>
+                  <option value="3600000">1 hour</option>
+                  <option value="86400000">1 day</option>
+                  <option value="604800000">7 days</option>
+                </select>
+              </div>
+              <label className="inline-flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={oneTime} onChange={(e) => setOneTime(e.target.checked)} />
+                Delete after first view (one-time)
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  className="px-3 py-2 rounded-xl text-white font-bold bg-gradient-to-br from-indigo-500 to-fuchsia-500 shadow"
+                  onClick={handleSend}
+                >
+                  🚀 Send
+                </button>
+                <button
+                  className="px-3 py-2 rounded-xl text-white font-bold bg-gradient-to-br from-rose-500 to-orange-500 shadow"
+                  onClick={handleDelete}
+                >
+                  🗑️ Delete ID
+                </button>
+              </div>
+              <div>
+                <div className="text-sm">{status}</div>
+                {!!shareUrl && (
+                  <div className="mt-2">
+                    <label className="text-sm">Shareable link</label>
+                    <div className="flex gap-2 mt-1">
+                      <input className="border rounded-xl px-3 py-2 flex-1" readOnly value={shareUrl} />
+                      <button
+                        className="px-3 py-2 rounded-xl text-white font-semibold bg-gradient-to-br from-sky-500 to-cyan-500 shadow"
+                        onClick={() => {
+                          if (!shareUrl) return toast("No link", "err");
+                          navigator.clipboard.writeText(shareUrl).then(() => toast("Link copied", "ok"));
+                        }}
+                      >
+                        Copy Link
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </FancyCard>
+
+          {/* Receiver */}
+          <FancyCard
+            title="Receiver"
+            subtitle="Login required to open and decrypt received data"
+            icon={<Eye className="h-5 w-5 text-emerald-600" />}
+            right={
+              <div className="flex gap-2">
+                {!isSignedIn ? (
+                  <button
+                    className="px-3 py-2 rounded-xl text-white font-semibold bg-gradient-to-br from-emerald-500 to-green-500 shadow"
+                    onClick={async () => {
+                      try {
+                        await signInWithPopup(auth, provider);
+                        toast("Signed in", "ok");
+                      } catch (e) {
+                        toast("Login failed", "err");
+                      }
+                    }}
+                  >
+                    Sign in with Google
+                  </button>
+                ) : (
+                  <button
+                    className="px-3 py-2 rounded-xl text-white font-semibold bg-gradient-to-br from-rose-500 to-red-500 shadow"
+                    onClick={async () => {
+                      try {
+                        await signOut(auth);
+                        toast("Signed out", "ok");
+                      } catch (e) {
+                        toast("Signout failed", "err");
+                      }
+                    }}
+                  >
+                    Sign out
+                  </button>
+                )}
+              </div>
+            }
+          >
+            <div className={cx("space-y-3", !isSignedIn && "opacity-60 pointer-events-none")}>
+              <div className="flex gap-2">
+                <input
+                  value={receiverId}
+                  onChange={(e) => setReceiverId(e.target.value)}
+                  placeholder="Enter ID to receive"
+                  className="border rounded-xl px-3 py-2 flex-1"
+                />
+                <button
+                  className="px-3 py-2 rounded-xl text-white font-semibold bg-gradient-to-br from-emerald-500 to-green-500 shadow"
+                  onClick={() => {
+                    if (!auth.currentUser) return toast("Login first", "err");
+                    const id = receiverId.trim();
+                    if (!id) return toast("Enter ID", "err");
+                    startReceive(id);
+                  }}
+                >
+                  🔍 Open
+                </button>
+                <button
+                  className="px-3 py-2 rounded-xl text-white font-semibold bg-gradient-to-br from-sky-500 to-cyan-500 shadow"
+                  onClick={() => {
+                    stopReceive();
+                    toast("Stopped");
+                  }}
+                >
+                  ✋ Stop
+                </button>
+              </div>
+              <input
+                value={recvPass}
+                onChange={(e) => setRecvPass(e.target.value)}
+                placeholder="Passphrase (if encrypted)"
+                className="border rounded-xl px-3 py-2"
+              />
+              {!!countdown && <div className="text-xs opacity-75">{countdown}</div>}
+
+              {!!recvText && (
+                <div className="p-4 border rounded-xl">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="font-semibold">
+                      Data <span className="ml-2"><Pill>{meta.kind}</Pill></span>
+                    </div>
+                    <div className="text-xs opacity-70">ID: {meta.id} • Views: {meta.views}</div>
+                  </div>
+                  <pre className="whitespace-pre-wrap break-words text-sm">{recvText}</pre>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      className="px-3 py-2 rounded-xl text-white font-semibold bg-gradient-to-br from-sky-500 to-cyan-500 shadow"
+                      onClick={() => navigator.clipboard.writeText(recvText).then(() => toast("Copied", "ok"))}
+                    >
+                      Copy Data
+                    </button>
+                    <button
+                      className="px-3 py-2 rounded-xl text-white font-semibold bg-gradient-to-br from-sky-500 to-cyan-500 shadow"
+                      onClick={async () => {
+                        const h = await sha256(enc.encode(recvText));
+                        alert(
+                          h === undefined
+                            ? "Hash error"
+                            : `SHA-256: ${h.slice(0, 10)}…\n(Compare with sender's preview)`
+                        );
+                      }}
+                    >
+                      Verify SHA-256
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+            {!isSignedIn && (
+              <div className="text-xs opacity-70 mt-1">Login करें, फिर ID डालकर “Open” दबाएँ।</div>
+            )}
+          </FancyCard>
+        </div>
+
+        {/* History */}
+        <FancyCard title="History" subtitle="Local-only log on this device" icon={<Timer className="h-5 w-5 text-sky-600" />}> 
+          <div className="flex gap-2 mb-3">
+            <button
+              onClick={() => setHistTab("sent")}
+              className={cx(
+                "px-3 py-2 rounded-xl text-white font-semibold bg-gradient-to-br from-sky-500 to-cyan-500 shadow",
+                histTab === "sent" && "ring-2 ring-offset-2"
+              )}
+            >
+              Sent
+            </button>
+            <button
+              onClick={() => setHistTab("recv")}
+              className={cx(
+                "px-3 py-2 rounded-xl text-white font-semibold bg-gradient-to-br from-sky-500 to-cyan-500 shadow",
+                histTab === "recv" && "ring-2 ring-offset-2"
+              )}
+            >
+              Received
+            </button>
+            <button
+              onClick={() => {
+                localStorage.removeItem(HSENT);
+                localStorage.removeItem(HREC);
+                renderHist();
+                toast("Local cleared", "ok");
+              }}
+              className="px-3 py-2 rounded-xl text-white font-semibold bg-gradient-to-br from-rose-500 to-orange-500 shadow"
+            >
+              Clear Local
+            </button>
+          </div>
+
+          <div className="space-y-2 max-h-72 overflow-auto pr-1">
+            {(histTab === "sent" ? hist.sent : hist.recv).length === 0 ? (
+              <div className="text-sm opacity-70">Empty</div>
+            ) : (
+              (histTab === "sent" ? hist.sent : hist.recv)
+                .slice(0, 200)
+                .map((d, i) => (
+                  <div key={i} className="p-2 rounded-lg border flex items-center justify-between bg-white">
+                    <div>
+                      <div className="font-semibold">{d.title}</div>
+                      <div className="text-xs opacity-70">{d.time} • ID: {d.id}</div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        className="px-3 py-2 rounded-xl text-white font-semibold bg-gradient-to-br from-sky-500 to-cyan-500 shadow"
+                        onClick={() => navigator.clipboard.writeText(d.id).then(() => toast("Copied", "ok"))}
+                      >
+                        Copy ID
+                      </button>
+                      <a
+                        className="px-3 py-2 rounded-xl text-white font-semibold bg-gradient-to-br from-sky-500 to-cyan-500 shadow"
+                        href={`${location.origin + location.pathname}?id=${d.id}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Open
+                      </a>
+                    </div>
+                  </div>
+                ))
+            )}
+          </div>
+        </FancyCard>
+
+        {/* Footer notes */}
+        <div className="text-center text-xs text-white/90">
+          <div>Realtime DB rules must allow <span className="font-semibold">read: auth != null</span> and <span className="font-semibold">write: true</span> (or tighten as desired).</div>
+          <div className="opacity-80">PBKDF2 150k • AES-GCM 256-bit • SHA-256 preview & verify • One-time + Expiry</div>
+        </div>
+      </div>
+    </div>
+  );
+}
