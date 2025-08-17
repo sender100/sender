@@ -2,13 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Simple Data Share</title>
+  <title>🔥 Advanced Data Share</title>
+
   <script type="module">
-    // --- Firebase Import (v11 Modular) ---
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
     import { getDatabase, ref, set, get, child, remove } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
 
-    // --- Your Firebase Config (replace with your own project config) ---
+    // --- Your Firebase Config ---
     const firebaseConfig = {
       apiKey: "YOUR_API_KEY",
       authDomain: "YOUR_PROJECT.firebaseapp.com",
@@ -19,11 +19,10 @@
       appId: "YOUR_APP_ID"
     };
 
-    // --- Init Firebase ---
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    // --- Generate random ID for sharing ---
+    // Random ID
     function makeId(len = 6) {
       const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
       let res = "";
@@ -31,8 +30,43 @@
       return res;
     }
 
-    // --- Send Data ---
-    async function sendData() {
+    // Save to local history
+    function saveHistory(type, id, name, base64) {
+      let history = JSON.parse(localStorage.getItem("history") || "[]");
+      history.push({ type, id, name, data: base64, time: new Date().toLocaleString() });
+      localStorage.setItem("history", JSON.stringify(history));
+      renderHistory();
+    }
+
+    // Render History
+    function renderHistory() {
+      let history = JSON.parse(localStorage.getItem("history") || "[]");
+      const box = document.getElementById("historyBox");
+      box.innerHTML = "";
+      history.forEach((item, i) => {
+        let div = document.createElement("div");
+        div.className = "history-item";
+        div.innerHTML = `
+          <b>[${item.type}]</b> ${item.name} (ID: ${item.id}) <br>
+          <small>${item.time}</small><br>
+          <button onclick="downloadHistory(${i})">Download</button>
+        `;
+        box.appendChild(div);
+      });
+    }
+
+    // Download from history
+    window.downloadHistory = function(i) {
+      let history = JSON.parse(localStorage.getItem("history") || "[]");
+      let item = history[i];
+      const a = document.createElement("a");
+      a.href = item.data;
+      a.download = item.name;
+      a.click();
+    }
+
+    // Send
+    window.sendData = async function() {
       const fileInput = document.getElementById("fileInput");
       if (!fileInput.files.length) {
         alert("Select a file first!");
@@ -40,10 +74,9 @@
       }
       const file = fileInput.files[0];
       if (file.size > 12 * 1024 * 1024) {
-        alert("File too large! Max 12 MB allowed.");
+        alert("Max 12MB allowed!");
         return;
       }
-
       const reader = new FileReader();
       reader.onload = async function(e) {
         const base64Data = e.target.result;
@@ -53,72 +86,67 @@
           type: file.type,
           data: base64Data
         });
-        document.getElementById("shareId").innerText = "Your Share ID: " + id;
+        document.getElementById("shareId").innerHTML = `Your Share ID: <b>${id}</b>
+          <button onclick="navigator.clipboard.writeText('${id}')">📋 Copy</button>`;
+        saveHistory("Sent", id, file.name, base64Data);
       };
       reader.readAsDataURL(file);
     }
 
-    // --- Receive Data ---
-    async function receiveData() {
+    // Receive
+    window.receiveData = async function() {
       const id = document.getElementById("receiveId").value.trim();
-      if (!id) {
-        alert("Enter a Share ID!");
-        return;
-      }
+      if (!id) { alert("Enter Share ID!"); return; }
       const snap = await get(child(ref(db), "files/" + id));
-      if (!snap.exists()) {
-        alert("No data found for this ID!");
-        return;
-      }
+      if (!snap.exists()) { alert("No data found!"); return; }
       const fileData = snap.val();
       const a = document.createElement("a");
       a.href = fileData.data;
       a.download = fileData.name;
       a.click();
+      saveHistory("Received", id, fileData.name, fileData.data);
     }
 
-    // --- Clear DB (optional admin action) ---
-    async function clearAll() {
+    // Clear All
+    window.clearAll = async function() {
       await remove(ref(db, "files"));
-      alert("All data cleared!");
+      localStorage.removeItem("history");
+      document.getElementById("historyBox").innerHTML = "";
+      alert("Cleared everything!");
     }
 
-    // Attach buttons
-    window.sendData = sendData;
-    window.receiveData = receiveData;
-    window.clearAll = clearAll;
+    window.onload = renderHistory;
   </script>
 
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: linear-gradient(135deg, #667eea, #764ba2);
+      background: linear-gradient(135deg, #36d1dc, #5b86e5);
       color: white;
       text-align: center;
-      padding: 50px;
+      padding: 30px;
     }
     .box {
       background: rgba(0,0,0,0.4);
       padding: 20px;
-      border-radius: 12px;
+      border-radius: 15px;
       margin: 20px auto;
-      max-width: 500px;
+      max-width: 600px;
       box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+      animation: fadeIn 1s;
     }
     button {
-      background: #ff7eb3;
+      background: #ff758c;
       border: none;
       padding: 10px 20px;
-      margin: 10px;
+      margin: 8px;
       border-radius: 8px;
       color: white;
       font-weight: bold;
       cursor: pointer;
       transition: 0.3s;
     }
-    button:hover {
-      background: #ff4f81;
-    }
+    button:hover { background: #ff4f70; }
     input {
       padding: 10px;
       border-radius: 6px;
@@ -126,11 +154,21 @@
       width: 80%;
       margin: 10px;
     }
+    .history-item {
+      background: rgba(255,255,255,0.1);
+      margin: 8px;
+      padding: 8px;
+      border-radius: 6px;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
   </style>
 </head>
 <body>
-  <h1>🔥 Simple Data Share</h1>
-  
+  <h1>🔥 Advanced Data Share</h1>
+
   <div class="box">
     <h2>Send File</h2>
     <input type="file" id="fileInput" />
@@ -144,6 +182,11 @@
     <input type="text" id="receiveId" placeholder="Enter Share ID" />
     <br>
     <button onclick="receiveData()">Receive</button>
+  </div>
+
+  <div class="box">
+    <h2>History</h2>
+    <div id="historyBox"></div>
   </div>
 
   <div class="box">
