@@ -1,381 +1,154 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>⚡ Simple Realtime Sender — ID Share</title>
-
-<!-- Tailwind (latest) -->
-<script src="https://cdn.tailwindcss.com"></script>
-<!-- Animate.css -->
-<link href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" rel="stylesheet"/>
-<!-- Orbitron + Poppins -->
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet"/>
-<!-- QR Code -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-
-<style>
-  :root{ --i:#6366f1; --p:#ec4899; --g:#10b981; --b:#3b82f6 }
-  *{ box-sizing:border-box }
-  body{ font-family:'Poppins',sans-serif; overflow-x:hidden }
-  h1,h2{ font-family:'Orbitron',sans-serif }
-
-  /* Animated gradient bg */
-  .bg-anim{ min-height:100vh; background:radial-gradient(1200px 600px at 10% 10%, rgba(99,102,241,.25), transparent 60%), radial-gradient(1000px 500px at 90% 20%, rgba(236,72,153,.25), transparent 60%), linear-gradient(120deg,#0ea5e9,#6366f1,#a855f7,#ec4899,#14b8a6); background-size:250% 250%; animation:bgShift 18s ease infinite }
-  @keyframes bgShift{ 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
-
-  /* Glass */
-  .glass{ background:rgba(255,255,255,.1); backdrop-filter: blur(16px); border:1px solid rgba(255,255,255,.25); box-shadow:0 30px 80px rgba(0,0,0,.25) }
-
-  /* Card */
-  .card{ position:relative; border-radius:20px; overflow:hidden; background:rgba(255,255,255,.92) }
-  .dark .card{ background:rgba(17,24,39,.92); color:#e5e7eb }
-  .ringGlow{ position:absolute; inset:-2px; pointer-events:none; background:
-    conic-gradient(from 0deg at 50% 50%, rgba(99,102,241,.35), rgba(236,72,153,.35), rgba(20,184,166,.35), transparent 70%);
-    filter: blur(20px); opacity:.9 }
-
-  /* Inputs + Buttons */
-  .f-input{ border:1px solid rgba(0,0,0,.1); border-radius:14px; padding:.9rem }
-  .f-input:focus{ outline:none; box-shadow:0 0 0 3px rgba(99,102,241,.25); border-color:var(--i) }
-
-  .btn{ border-radius:14px; padding:.85rem 1.05rem; font-weight:800; color:#fff; cursor:pointer; transition:transform .18s ease, box-shadow .18s ease }
-  .btn-indigo{ background:linear-gradient(135deg,#6366f1,#8b5cf6); box-shadow:0 10px 24px rgba(99,102,241,.45) }
-  .btn-indigo:hover{ transform:translateY(-1px) scale(1.02) }
-  .btn-green{ background:linear-gradient(135deg,#10b981,#22c55e); box-shadow:0 10px 24px rgba(16,185,129,.45) }
-  .btn-blue{ background:linear-gradient(135deg,#3b82f6,#06b6d4) }
-  .btn-red{ background:linear-gradient(135deg,#ef4444,#f97316) }
-  .btn-soft{ background:#eef2ff; color:#4f46e5; font-weight:700 }
-
-  .badge{ font-size:.72rem; padding:.24rem .6rem; border-radius:999px; background:rgba(255,255,255,.22); color:#fff }
-
-  /* Dropzone */
-  .dz{ border:2px dashed rgba(0,0,0,.18); border-radius:16px; padding:18px; transition:.2s; background:rgba(255,255,255,.55) }
-  .dark .dz{ background:rgba(255,255,255,.06); border-color:rgba(255,255,255,.12) }
-  .dz.drag{ border-color:#60a5fa; background:rgba(96,165,250,.09) }
-
-  /* Progress */
-  .bar{ height:10px; background:linear-gradient(90deg,var(--i),var(--p)); border-radius:12px; width:0%; transition:width .25s ease }
-
-  /* Toasts */
-  .toasts{ position:fixed; top:14px; right:14px; z-index:9999; display:flex; flex-direction:column; gap:10px }
-  .toast{ min-width:260px; max-width:380px; padding:12px 14px; color:#fff; border-radius:14px; box-shadow:0 16px 36px rgba(0,0,0,.25); backdrop-filter: blur(8px) saturate(1.1) }
-  .ok{ background:linear-gradient(135deg,#34d399,#10b981) }
-  .err{ background:linear-gradient(135deg,#f87171,#ef4444) }
-  .info{ background:linear-gradient(135deg,#60a5fa,#3b82f6) }
-
-  /* Dark quick */
-  .dark body{ background:#0b1220 }
-</style>
-</head>
-<body class="bg-anim">
-  <!-- Toasts -->
-  <div id="toasts" class="toasts" aria-live="polite" aria-atomic="true"></div>
-
-  <header class="max-w-6xl mx-auto px-5 pt-8 pb-2">
-    <div class="glass rounded-3xl px-6 py-5 flex items-center justify-between animate__animated animate__fadeInDown">
-      <div class="flex items-center gap-3">
-        <h1 class="text-3xl sm:text-4xl font-extrabold text-white drop-shadow">⚡ Simple Realtime Sender</h1>
-        <span class="badge hidden sm:inline">ID • Live</span>
-      </div>
-      <div class="flex items-center gap-2">
-        <button id="darkBtn" class="btn btn-soft">🌙 Dark</button>
-        <a class="btn btn-blue" href="https://console.firebase.google.com/" target="_blank" rel="noopener">Firebase</a>
-      </div>
-    </div>
-  </header>
-
-  <main class="max-w-6xl mx-auto px-5 pb-10">
-    <div class="grid lg:grid-cols-2 gap-6">
-      <!-- SENDER -->
-      <section class="card p-6 relative animate__animated animate__fadeInUp">
-        <div class="ringGlow"></div>
-        <div class="relative">
-          <h2 class="text-2xl text-indigo-700 dark:text-indigo-300 mb-3">📤 Sender</h2>
-
-          <div class="flex gap-2 mb-3">
-            <input id="senderId" class="f-input flex-1" placeholder="Custom ID (optional)" aria-label="Sender ID"/>
-            <button id="genId" class="btn btn-indigo">Generate</button>
-            <button id="copyId" class="btn btn-soft">Copy</button>
-          </div>
-
-          <div id="dz" class="dz mb-3">
-            <div class="flex items-center justify-between">
-              <div class="flex-1">
-                <div class="text-sm font-semibold">Choose file (≤ 12 MB)</div>
-                <input id="fileInput" type="file" class="w-full f-input mt-2"/>
-                <p id="fileInfo" class="text-xs opacity-80 mt-1"></p>
-                <div id="previewWrap" class="mt-2 hidden">
-                  <div class="text-xs mb-1">Preview</div>
-                  <div id="previewBox" class="rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700"></div>
-                </div>
-              </div>
-              <div class="hidden md:block text-4xl">📎</div>
-            </div>
-            <p class="text-xs mt-2">Tip: Drag & drop, या Ctrl+V से paste करें।</p>
-          </div>
-
-          <div class="grid grid-cols-2 gap-3 mb-2">
-            <button id="sendBtn" class="btn btn-indigo animate__animated animate__pulse animate__infinite">🚀 Send</button>
-            <button id="deleteBtn" class="btn btn-red">🗑️ Delete by ID</button>
-          </div>
-
-          <div class="mb-2"><div id="prog" class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></div></div>
-          <p id="status" class="text-sm"></p>
-
-          <div id="shareWrap" class="mt-3 hidden">
-            <p class="text-sm mb-2">Share receiver link या QR:</p>
-            <div class="flex gap-2 mb-3">
-              <input id="shareLink" class="f-input flex-1 bg-white dark:bg-gray-900" readonly/>
-              <button id="copyShare" class="btn btn-blue">Copy Link</button>
-            </div>
-            <div id="qrcode" class="inline-block p-3 bg-white dark:bg-gray-900 rounded-xl"></div>
-          </div>
-        </div>
-      </section>
-
-      <!-- RECEIVER -->
-      <section class="card p-6 relative animate__animated animate__fadeInUp animate__delay-1s">
-        <div class="ringGlow"></div>
-        <div class="relative">
-          <h2 class="text-2xl text-green-700 dark:text-green-300 mb-3">📥 Receiver</h2>
-
-          <div class="flex gap-2 mb-3">
-            <input id="receiverId" class="f-input flex-1" placeholder="Enter ID to receive" aria-label="Receiver ID"/>
-            <button id="openBtn" class="btn btn-green">🔍 Open</button>
-            <button id="stopBtn" class="btn btn-soft">✋ Stop</button>
-          </div>
-
-          <div id="receiveBox" class="space-y-3"></div>
-        </div>
-      </section>
-    </div>
-
-    <!-- HISTORY -->
-    <section class="card p-6 mt-6 animate__animated animate__fadeInUp animate__delay-2s">
-      <div class="flex items-center justify-between mb-3">
-        <h2 class="text-2xl text-blue-700 dark:text-blue-300">📜 History</h2>
-        <div class="flex gap-2">
-          <button id="tabSent" class="btn btn-soft">Sent</button>
-          <button id="tabRecv" class="btn btn-soft">Received</button>
-          <button id="clearHist" class="btn btn-soft">Clear</button>
-        </div>
-      </div>
-      <div id="histList" class="space-y-2 max-h-80 overflow-auto pr-1"></div>
-    </section>
-  </main>
-
-  <!-- Firebase v11 (ESM) -->
+  <meta charset="UTF-8">
+  <title>Simple Data Share</title>
   <script type="module">
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js';
-    import { getDatabase, ref, set, onValue, off, remove, get } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-database.js';
+    // --- Firebase Import (v11 Modular) ---
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+    import { getDatabase, ref, set, get, child, remove } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
 
-    /* 1) Fill your Firebase config */
+    // --- Your Firebase Config (replace with your own project config) ---
     const firebaseConfig = {
-      apiKey: 'AIzaSyYOUR_KEY',
-      authDomain: 'your-project.firebaseapp.com',
-      databaseURL: 'https://your-project-default-rtdb.firebaseio.com',
-      projectId: 'your-project',
-      storageBucket: 'your-project.appspot.com',
-      messagingSenderId: '0000000000',
-      appId: '1:0000000000:web:xxxxxxxxxxxxxx'
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT.firebaseapp.com",
+      databaseURL: "https://YOUR_PROJECT.firebaseio.com",
+      projectId: "YOUR_PROJECT",
+      storageBucket: "YOUR_PROJECT.appspot.com",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
     };
 
-    /* 2) Init */
+    // --- Init Firebase ---
     const app = initializeApp(firebaseConfig);
-    const db  = getDatabase(app);
+    const db = getDatabase(app);
 
-    /* Utils */
-    const $ = id => document.getElementById(id);
-    const asMB = b => (b/1024/1024).toFixed(2)+' MB';
-    const copy = t => navigator.clipboard.writeText(t).then(()=>toast('ok','Copied','Copied')).catch(()=>toast('err','Copy failed','Copy manually'));
-    function randomId(n=8){ const s='abcdefghijklmnopqrstuvwxyz0123456789'; let r=''; for(let i=0;i<n;i++) r+=s[Math.floor(Math.random()*s.length)]; return r }
-
-    /* Dark */
-    const DK='simple-dark';
-    const applyDark=on=>{ document.documentElement.classList.toggle('dark',on); $('darkBtn').textContent=on?'☀️ Light':'🌙 Dark'; localStorage.setItem(DK,on?'1':'0') };
-    $('darkBtn').onclick=()=>applyDark(!document.documentElement.classList.contains('dark'));
-    (function(){ const saved=localStorage.getItem(DK); const prefers=matchMedia('(prefers-color-scheme: dark)').matches; applyDark(saved? saved==='1': prefers) })();
-
-    /* Toasts */
-    const toWrap=$('toasts');
-    function toast(type,title,msg){ const el=document.createElement('div'); el.className=\`toast \${type==='ok'?'ok':type==='err'?'err':'info'} animate__animated animate__fadeInRight\`; el.innerHTML=\`<div class="font-bold">\${title}</div><div class="text-sm opacity-90">\${msg}</div>\`; toWrap.appendChild(el); setTimeout(()=>{ el.classList.replace('animate__fadeInRight','animate__fadeOutRight'); setTimeout(()=>el.remove(),500) },2400) }
-
-    /* History (local) */
-    const HS='hist-sent', HR='hist-recv';
-    const getH=k=>{ try{return JSON.parse(localStorage.getItem(k)||'[]')}catch{ return [] } };
-    const putH=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
-    function addSent(x){ const a=getH(HS); a.unshift(x); putH(HS,a); renderHist() }
-    function addRecv(x){ const a=getH(HR); a.unshift(x); putH(HR,a); renderHist() }
-    let tab='sent';
-    function renderHist(){
-      const box=$('histList'); box.innerHTML='';
-      const arr=tab==='sent'?getH(HS):getH(HR);
-      if(!arr.length){ box.innerHTML='<div class="text-sm opacity-70">Nothing here yet</div>'; return }
-      arr.slice(0,160).forEach(d=>{
-        const row=document.createElement('div');
-        row.className='flex items-center justify-between rounded-xl px-3 py-2 bg-white/70 dark:bg-white/10';
-        row.innerHTML=\`
-          <div>
-            <div class="font-semibold">\${d.name} <span class="text-xs opacity-70">(\${d.size||''})</span></div>
-            <div class="text-xs opacity-60">\${d.time} • ID: \${d.id}</div>
-          </div>
-          <div class="flex gap-2">
-            \${d.link? \`<a class="btn btn-blue px-3 py-2 text-white" target="_blank" href="\${d.link}">Open</a>\`:''}
-            <button class="btn btn-soft px-3 py-2" onclick="navigator.clipboard.writeText('\${d.id}')">Copy ID</button>
-          </div>\`;
-        box.appendChild(row);
-      });
-    }
-    $('tabSent').onclick=()=>{ tab='sent'; renderHist() }
-    $('tabRecv').onclick=()=>{ tab='recv'; renderHist() }
-    $('clearHist').onclick=()=>{ localStorage.removeItem(HS); localStorage.removeItem(HR); renderHist(); toast('ok','Cleared','History removed') }
-    renderHist();
-
-    /* Share link + QR */
-    function setShareLink(id){
-      const url=new URL(location.href); url.searchParams.set('id',id);
-      $('shareLink').value=url.toString();
-      $('shareWrap').classList.remove('hidden');
-      $('qrcode').innerHTML='';
-      new QRCode('qrcode',{text:url.toString(), width:150, height:150});
+    // --- Generate random ID for sharing ---
+    function makeId(len = 6) {
+      const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+      let res = "";
+      for (let i = 0; i < len; i++) res += chars.charAt(Math.floor(Math.random() * chars.length));
+      return res;
     }
 
-    /* Drag & Drop + Paste */
-    const dz=$('dz');
-    ['dragenter','dragover'].forEach(ev=>dz.addEventListener(ev,e=>{ e.preventDefault(); dz.classList.add('drag') }));
-    ['dragleave','drop'].forEach(ev=>dz.addEventListener(ev,e=>{ e.preventDefault(); dz.classList.remove('drag') }));
-    dz.addEventListener('drop',e=>{ const f=e.dataTransfer.files?.[0]; if(f){ $('fileInput').files=e.dataTransfer.files; showFile(f) } });
-    window.addEventListener('paste',e=>{ const f=[...e.clipboardData.items].find(i=>i.kind==='file')?.getAsFile(); if(f){ const dt=new DataTransfer(); dt.items.add(f); $('fileInput').files=dt.files; showFile(f); toast('ok','Pasted','File added') } });
+    // --- Send Data ---
+    async function sendData() {
+      const fileInput = document.getElementById("fileInput");
+      if (!fileInput.files.length) {
+        alert("Select a file first!");
+        return;
+      }
+      const file = fileInput.files[0];
+      if (file.size > 12 * 1024 * 1024) {
+        alert("File too large! Max 12 MB allowed.");
+        return;
+      }
 
-    /* File preview */
-    $('fileInput').addEventListener('change',e=>{ const f=e.target.files[0]; if(f) showFile(f) });
-    function showFile(file){
-      $('fileInfo').textContent=\`\${file.name} • \${asMB(file.size)}\`;
-      const wrap=$('previewWrap'); const box=$('previewBox'); box.innerHTML='';
-      if(!file){ wrap.classList.add('hidden'); return }
-      wrap.classList.remove('hidden');
-      const url=URL.createObjectURL(file);
-      if(file.type.startsWith('image/')){ const img=new Image(); img.src=url; img.alt=file.name; img.className='max-h-52 w-auto'; box.appendChild(img) }
-      else if(file.type==='application/pdf'){ const ifr=document.createElement('iframe'); ifr.src=url; ifr.className='w-full h-56'; box.appendChild(ifr) }
-      else if(file.type.startsWith('video/')){ const v=document.createElement('video'); v.src=url; v.controls=true; v.className='w-full max-h-56'; box.appendChild(v) }
-      else if(file.type.startsWith('audio/')){ const a=document.createElement('audio'); a.src=url; a.controls=true; box.appendChild(a) }
-      else { box.innerHTML='<div class="text-xs p-2">No inline preview.</div>' }
-    }
-
-    /* URL id -> auto receive */
-    (function(){ const q=new URL(location.href).searchParams.get('id'); if(q){ $('receiverId').value=q; toast('info','ID from URL', q); startReceive(q) } })();
-
-    /* Sender actions */
-    $('genId').onclick=()=>{ const id=randomId(8); $('senderId').value=id; copy(id); setShareLink(id) };
-    $('copyId').onclick=()=>{ const id=$('senderId').value.trim(); if(!id) return toast('err','No ID','Type or generate an ID'); copy(id); setShareLink(id) };
-    $('copyShare').onclick=()=>{ const v=$('shareLink').value; if(!v) return toast('err','No link','Share link not ready'); copy(v) };
-
-    $('deleteBtn').onclick=async()=>{
-      const id=$('senderId').value.trim(); if(!id) return toast('err','No ID','Enter/generate an ID');
-      if(!confirm(`Delete data for ID "${id}"?`)) return;
-      try{ await remove(ref(db,'files-simple/'+id)); toast('ok','Deleted',`Cleared ${id}`) }catch(e){ toast('err','Delete failed', e.message||'Error') }
-    };
-
-    $('sendBtn').onclick=async()=>{
-      const f=$('fileInput').files[0]; if(!f) return toast('err','File missing','Choose a file first');
-      const MAX=12*1024*1024; if(f.size>MAX) return toast('err','Too large',`Use ≤ 12 MB (yours ${asMB(f.size)})`);
-      const id=$('senderId').value.trim() || randomId(8); $('senderId').value=id;
-
-      // Warn on overwrite (if not expired model here—simple)
-      try{ const ex=(await get(ref(db,'files-simple/'+id))).val(); if(ex){ const ok=confirm(`Data exists for ID "${id}". Overwrite?`); if(!ok) return; } }catch{}
-
-      // Read -> base64 -> push
-      const prog=$('prog'); const status=$('status');
-      prog.style.width='0%'; prog.setAttribute('aria-valuenow','0'); status.textContent='Preparing…';
-
-      const reader=new FileReader();
-      reader.onloadstart=()=>{ prog.style.width='10%'; prog.setAttribute('aria-valuenow','10') };
-      reader.onprogress=e=>{ if(e.lengthComputable){ const pct=Math.max(10, Math.round((e.loaded/e.total)*100)); prog.style.width=pct+'%'; prog.setAttribute('aria-valuenow', String(pct)) } };
-      reader.onload=async e=>{
-        try{
-          const bytes=new Uint8Array(e.target.result);
-          const base64='data:'+(f.type||'application/octet-stream')+';base64,'+btoa(String.fromCharCode(...bytes));
-          status.textContent='Uploading…';
-          await set(ref(db,'files-simple/'+id), {
-            name:f.name, size:f.size, data:base64,
-            time:new Date().toISOString(), views:0
-          });
-          prog.style.width='100%'; prog.setAttribute('aria-valuenow','100');
-          status.innerHTML=`✅ <b>${f.name}</b> sent. ID: <b>${id}</b>`;
-          setShareLink(id);
-          toast('ok','Sent','Link ready');
-          addSent({ id, name:f.name, time:new Date().toLocaleString(), size:asMB(f.size), link:location.origin+location.pathname+'?id='+id });
-        }catch(err){ console.error(err); toast('err','Send failed', err.message||'Error') }
+      const reader = new FileReader();
+      reader.onload = async function(e) {
+        const base64Data = e.target.result;
+        const id = makeId();
+        await set(ref(db, "files/" + id), {
+          name: file.name,
+          type: file.type,
+          data: base64Data
+        });
+        document.getElementById("shareId").innerText = "Your Share ID: " + id;
       };
-      reader.readAsArrayBuffer(f);
-    };
-
-    /* Receiver */
-    $('openBtn').onclick=()=>{ const id=$('receiverId').value.trim(); if(!id) return toast('err','ID missing','Type an ID'); startReceive(id) };
-    $('stopBtn').onclick=()=>{ stopReceive(); toast('info','Stopped','Live listener off') };
-
-    let currentRef=null;
-    function stopReceive(){ if(currentRef){ off(currentRef); currentRef=null } }
-
-    async function startReceive(id){
-      stopReceive();
-      const box=$('receiveBox'); box.innerHTML='<div class="text-sm opacity-75">⏳ Listening…</div>';
-      currentRef = ref(db,'files-simple/'+id);
-
-      onValue(currentRef, async snap=>{
-        const d = snap.val();
-        if(!d){ box.innerHTML='<div class="text-red-600 dark:text-red-400 font-semibold animate__animated animate__shakeX">❌ No file for this ID</div>'; return }
-
-        const info = `
-          <div class="font-semibold mb-1">📄 ${d.name} <span class="text-xs opacity-70">(${asMB(d.size||0)})</span></div>
-          <div class="text-xs opacity-70 mb-3">⏱ ${new Date(d.time).toLocaleString()} • ID: ${id} ${typeof d.views==='number'?`• Views: ${d.views}`:''}</div>`;
-
-        const actions = `
-          <div class="flex flex-wrap gap-2">
-            <a id="dlBtn" class="btn btn-blue px-4 py-2 text-white" href="#">⬇ Download</a>
-            <button id="pvBtn" class="btn btn-soft px-4 py-2">👀 Preview</button>
-            <button id="copyData" class="btn btn-soft px-4 py-2">Copy Data URL</button>
-          </div>`;
-
-        box.innerHTML = `<div class="p-4 rounded-xl bg-white/90 dark:bg-gray-900 shadow animate__animated animate__fadeInUp">${info}${actions}<div id="pvArea" class="mt-3"></div></div>`;
-
-        function mime(){ return d.data?.startsWith('data:') ? d.data.split(';')[0].slice(5) : 'application/octet-stream' }
-        function toBlob(){
-          try{ const b64=d.data.split(',')[1]; const bin=atob(b64); const arr=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i); return new Blob([arr], { type:mime() }) }catch{ return null }
-        }
-
-        $('dlBtn').onclick=(e)=>{ e.preventDefault(); const bl=toBlob(); if(!bl) return; const url=URL.createObjectURL(bl); const a=document.createElement('a'); a.href=url; a.download=d.name||'download'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); toast('ok','Download','Started'); addRecv({ id, name:d.name, time:new Date().toLocaleString(), link:location.origin+location.pathname+'?id='+id }) };
-        $('pvBtn').onclick=()=>{ const area=$('pvArea'); area.innerHTML=''; const bl=toBlob(); if(!bl) return; const url=URL.createObjectURL(bl); const m=mime();
-          if(m.startsWith('image/')){ const img=new Image(); img.src=url; img.className='max-h-64 w-auto rounded-lg shadow'; area.appendChild(img) }
-          else if(m==='application/pdf'){ const ifr=document.createElement('iframe'); ifr.src=url; ifr.className='w-full h-72 rounded-lg'; area.appendChild(ifr) }
-          else if(m.startsWith('video/')){ const v=document.createElement('video'); v.src=url; v.controls=true; v.className='w-full max-h-72 rounded-lg'; area.appendChild(v) }
-          else if(m.startsWith('audio/')){ const a=document.createElement('audio'); a.src=url; a.controls=true; area.appendChild(a) }
-          else { const a=document.createElement('a'); a.href=url; a.textContent='Open preview'; a.target='_blank'; area.appendChild(a) }
-        };
-        $('copyData').onclick=()=>{ if(!d.data) return; copy(d.data) };
-
-        // Increment views (best-effort)
-        try{ const s=await get(currentRef); const v=s.val(); if(v){ v.views=(v.views||0)+1; await set(currentRef,v) } }catch{}
-      });
+      reader.readAsDataURL(file);
     }
+
+    // --- Receive Data ---
+    async function receiveData() {
+      const id = document.getElementById("receiveId").value.trim();
+      if (!id) {
+        alert("Enter a Share ID!");
+        return;
+      }
+      const snap = await get(child(ref(db), "files/" + id));
+      if (!snap.exists()) {
+        alert("No data found for this ID!");
+        return;
+      }
+      const fileData = snap.val();
+      const a = document.createElement("a");
+      a.href = fileData.data;
+      a.download = fileData.name;
+      a.click();
+    }
+
+    // --- Clear DB (optional admin action) ---
+    async function clearAll() {
+      await remove(ref(db, "files"));
+      alert("All data cleared!");
+    }
+
+    // Attach buttons
+    window.sendData = sendData;
+    window.receiveData = receiveData;
+    window.clearAll = clearAll;
   </script>
 
-  <!-- Optional security rules hint:
-  {
-    "rules": {
-      "files-simple": {
-        "$id": {
-          ".read": true,
-          ".write": true,
-          ".validate": "
-            newData.child('name').isString() &&
-            newData.child('data').isString() &&
-            newData.child('size').val() <= 12 * 1024 * 1024
-          "
-        }
-      }
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      text-align: center;
+      padding: 50px;
     }
-  }
-  -->
+    .box {
+      background: rgba(0,0,0,0.4);
+      padding: 20px;
+      border-radius: 12px;
+      margin: 20px auto;
+      max-width: 500px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    }
+    button {
+      background: #ff7eb3;
+      border: none;
+      padding: 10px 20px;
+      margin: 10px;
+      border-radius: 8px;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    button:hover {
+      background: #ff4f81;
+    }
+    input {
+      padding: 10px;
+      border-radius: 6px;
+      border: none;
+      width: 80%;
+      margin: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔥 Simple Data Share</h1>
+  
+  <div class="box">
+    <h2>Send File</h2>
+    <input type="file" id="fileInput" />
+    <br>
+    <button onclick="sendData()">Send</button>
+    <p id="shareId"></p>
+  </div>
+
+  <div class="box">
+    <h2>Receive File</h2>
+    <input type="text" id="receiveId" placeholder="Enter Share ID" />
+    <br>
+    <button onclick="receiveData()">Receive</button>
+  </div>
+
+  <div class="box">
+    <h2>Admin</h2>
+    <button onclick="clearAll()">Clear All</button>
+  </div>
 </body>
 </html>
