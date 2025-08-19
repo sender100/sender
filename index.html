@@ -82,7 +82,114 @@ button:hover {
   </div>
 
   <!-- Firebase CDN -->
-  <script type="module" src="app.js"></script>
+  <script>
+    // Firebase SDK imports (CDN version)
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
+import { getStorage, ref, uploadBytes, getDownloadURL, listAll, deleteObject } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-storage.js";
+
+// ✅ Firebase Config
+const firebaseConfig = {
+  apiKey: "AIzaSyAG0o0WWhhjoadzHuYXDINnYp6-J2EqQcA",
+  authDomain: "sender-app-ee836.firebaseapp.com",
+  databaseURL: "https://sender-app-ee836-default-rtdb.firebaseio.com",
+  projectId: "sender-app-ee836",
+  storageBucket: "sender-app-ee836.appspot.com", // ✅ fixed
+  messagingSenderId: "443769926283",
+  appId: "1:443769926283:web:f88516aed2c80b34c7da8e",
+  measurementId: "G-3ZZYRJFM39"
+};
+
+// ✅ Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const storage = getStorage(app);
+
+// DOM Elements
+const authSection = document.getElementById("auth-section");
+const appSection = document.getElementById("app-section");
+const signupBtn = document.getElementById("signupBtn");
+const loginBtn = document.getElementById("loginBtn");
+const logoutBtn = document.getElementById("logoutBtn");
+const uploadBtn = document.getElementById("uploadBtn");
+const fileInput = document.getElementById("fileInput");
+const gallery = document.getElementById("gallery");
+
+// Signup
+signupBtn.addEventListener("click", () => {
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
+  createUserWithEmailAndPassword(auth, email, password)
+    .then(() => alert("Signup successful!"))
+    .catch(err => alert(err.message));
+});
+
+// Login
+loginBtn.addEventListener("click", () => {
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
+  signInWithEmailAndPassword(auth, email, password)
+    .catch(err => alert(err.message));
+});
+
+// Logout
+logoutBtn.addEventListener("click", () => {
+  signOut(auth);
+});
+
+// Auth state change
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    authSection.classList.add("hidden");
+    appSection.classList.remove("hidden");
+    loadGallery(user.uid);
+  } else {
+    authSection.classList.remove("hidden");
+    appSection.classList.add("hidden");
+    gallery.innerHTML = "";
+  }
+});
+
+// Upload
+uploadBtn.addEventListener("click", () => {
+  const files = fileInput.files;
+  if (files.length === 0) return alert("Please select files");
+  const user = auth.currentUser;
+  Array.from(files).forEach(file => {
+    const storageRef = ref(storage, `${user.uid}/${file.name}`);
+    uploadBytes(storageRef, file).then(() => {
+      alert("Uploaded: " + file.name);
+      loadGallery(user.uid);
+    });
+  });
+});
+
+// Load Gallery
+function loadGallery(uid) {
+  const listRef = ref(storage, uid + "/");
+  gallery.innerHTML = "";
+  listAll(listRef).then(res => {
+    res.items.forEach(itemRef => {
+      getDownloadURL(itemRef).then(url => {
+        const img = document.createElement("img");
+        img.src = url;
+        img.title = itemRef.name;
+        img.addEventListener("click", () => {
+          if (confirm("Delete this photo?")) {
+            deleteObject(itemRef).then(() => {
+              alert("Deleted " + itemRef.name);
+              loadGallery(uid);
+            });
+          }
+        });
+        gallery.appendChild(img);
+      });
+    });
+  });
+}
+
+  </script>
 </body>
 </html>
+
 
