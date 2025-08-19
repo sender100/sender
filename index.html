@@ -1,197 +1,34 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Family Photo Vault</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <style>
-    body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji"; }
-    .glass { background: rgba(255,255,255,0.08); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.15); }
-    .btn { @apply px-4 py-2 rounded-2xl shadow transition active:scale-[.98]; }
-    .btn-primary { @apply bg-indigo-600 hover:bg-indigo-500 text-white; }
-    .btn-outline { @apply border border-white/30 hover:bg-white/10 text-white; }
-    .btn-danger { @apply bg-rose-600 hover:bg-rose-500 text-white; }
-  </style>
+  <link rel="stylesheet" href="style.css">
 </head>
-<body class="min-h-screen bg-gradient-to-br from-indigo-700 via-fuchsia-600 to-rose-600 text-white">
-
-  <!-- NAVBAR -->
-  <header class="sticky top-0 z-50">
-    <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <div class="h-10 w-10 rounded-2xl bg-white/10 grid place-items-center">
-          📸
-        </div>
-        <h1 class="text-2xl font-extrabold tracking-tight">Family Photo Vault</h1>
-      </div>
-      <div class="flex items-center gap-3">
-        <span id="userEmail" class="text-sm opacity-90 hidden"></span>
-        <button id="btnLogout" class="btn btn-outline hidden">Logout</button>
-        <button id="btnLoginOpen" class="btn btn-primary">Login / Sign up</button>
-      </div>
-    </div>
-  </header>
-
-  <!-- HERO -->
-  <section class="max-w-7xl mx-auto px-4 pt-10 pb-4">
-    <div class="glass rounded-3xl p-6 md:p-10 shadow-xl">
-      <div class="grid md:grid-cols-2 gap-8 items-center">
-        <div>
-          <h2 class="text-3xl md:text-4xl font-extrabold leading-tight">Secure, shared gallery for the whole family</h2>
-          <p class="mt-3 text-white/90">Upload, view, and manage memories in a private space.</p>
-          <div class="mt-5 flex gap-3">
-            <button id="ctaUpload" class="btn btn-primary">Upload photos</button>
-            <a href="#gallery" class="btn btn-outline">View gallery</a>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- UPLOAD -->
-  <section class="max-w-7xl mx-auto px-4 pt-6 pb-2">
-    <div class="glass rounded-3xl p-6 md:p-8">
-      <div class="flex items-center justify-between gap-4">
-        <div>
-          <h3 class="text-xl md:text-2xl font-bold">Upload images</h3>
-          <p class="text-white/80 text-sm">Accepted: JPG, PNG, WEBP, HEIC • Max ~10MB/file</p>
-        </div>
-        <div class="flex gap-2">
-          <select id="memberSelect" class="rounded-2xl bg-white/10 border border-white/20 px-3 py-2 text-sm">
-            <option value="shared">Shared Album</option>
-            <option>Dad</option>
-            <option>Mom</option>
-            <option>Kids</option>
-            <option>Grandparents</option>
-          </select>
-          <button id="btnPickFiles" class="btn btn-primary">Choose files</button>
-          <input id="fileInput" type="file" accept="image/*" multiple class="hidden" />
-        </div>
-      </div>
-
-      <div id="dropZone" class="mt-4 rounded-2xl border-2 border-dashed border-white/30 bg-white/5 p-6 text-center">
-        <p class="font-medium">Drag & drop photos here</p>
-        <p class="text-sm text-white/80">or click “Choose files”</p>
-      </div>
-
-      <div id="queue" class="mt-4 grid sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
-      <div id="uploadStatus" class="mt-3 text-sm"></div>
-    </div>
-  </section>
-
-  <!-- GALLERY -->
-  <section id="gallery" class="max-w-7xl mx-auto px-4 pt-6 pb-20">
-    <div class="flex items-center justify-between mb-3">
-      <h3 class="text-xl md:text-2xl font-bold">Gallery</h3>
-      <div class="flex gap-2 items-center">
-        <select id="filterSelect" class="rounded-2xl bg-white/10 border border-white/20 px-3 py-2 text-sm">
-          <option value="all">All</option>
-          <option value="shared">Shared Album</option>
-          <option>Dad</option>
-          <option>Mom</option>
-          <option>Kids</option>
-          <option>Grandparents</option>
-        </select>
-        <button id="refreshBtn" class="btn btn-outline">Refresh</button>
-      </div>
-    </div>
-    <div id="galleryGrid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3"></div>
-    <p id="emptyState" class="text-white/80 text-center mt-6 hidden">No photos yet. Upload some memories! 🥰</p>
-  </section>
-
-  <!-- AUTH MODAL -->
-  <div id="authModal" class="fixed inset-0 hidden items-center justify-center bg-black/60 p-4">
-    <div class="w-full max-w-md glass rounded-3xl p-6">
-      <div class="flex items-center justify-between mb-4">
-        <h3 class="text-xl font-bold">Sign in / Create account</h3>
-        <button id="authClose" class="btn btn-outline">Close</button>
-      </div>
-      <div class="grid gap-3">
-        <input id="emailInput" type="email" placeholder="Email" class="w-full rounded-2xl bg-white/10 border border-white/20 px-4 py-3"/>
-        <input id="passwordInput" type="password" placeholder="Password (min 6 chars)" class="w-full rounded-2xl bg-white/10 border border-white/20 px-4 py-3"/>
-        <div class="flex gap-2">
-          <button id="btnLogin" class="btn btn-primary w-full">Login</button>
-          <button id="btnRegister" class="btn btn-outline w-full">Register</button>
-        </div>
-        <p id="authMsg" class="text-sm text-white/90"></p>
-      </div>
-    </div>
+<body>
+  <div id="auth-section" class="card">
+    <h2>Login / Signup</h2>
+    <input type="email" id="email" placeholder="Email" />
+    <input type="password" id="password" placeholder="Password" />
+    <button id="signupBtn">Sign Up</button>
+    <button id="loginBtn">Login</button>
   </div>
 
-  <!-- Firebase SDK -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-    import { getStorage, ref, uploadBytes, getDownloadURL, listAll } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+  <div id="app-section" class="hidden">
+    <h2>Welcome to Family Photo Vault</h2>
+    <button id="logoutBtn">Logout</button>
 
-    // ✅ Your Firebase Config
-    const firebaseConfig = {
-      apiKey: "AIzaSyAG0o0WWhhjoadzHuYXDINnYp6-J2EqQcA",
-      authDomain: "sender-app-ee836.firebaseapp.com",
-      databaseURL: "https://sender-app-ee836-default-rtdb.firebaseio.com",
-      projectId: "sender-app-ee836",
-      storageBucket: "sender-app-ee836.appspot.com",  // ⚠️ FIX: ".app" → ".appspot.com"
-      messagingSenderId: "443769926283",
-      appId: "1:443769926283:web:f88516aed2c80b34c7da8e",
-      measurementId: "G-3ZZYRJFM39"
-    };
+    <div class="upload-area">
+      <input type="file" id="fileInput" accept="image/*" multiple />
+      <button id="uploadBtn">Upload</button>
+    </div>
 
-    // Init Firebase
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const storage = getStorage(app);
+    <h3>Your Gallery</h3>
+    <div id="gallery"></div>
+  </div>
 
-    // 🔑 Auth state change
-    const userEmail = document.getElementById("userEmail");
-    const btnLoginOpen = document.getElementById("btnLoginOpen");
-    const btnLogout = document.getElementById("btnLogout");
-    const authModal = document.getElementById("authModal");
-
-    onAuthStateChanged(auth, (user) => {
-      if (user) {
-        userEmail.textContent = user.email;
-        userEmail.classList.remove("hidden");
-        btnLogout.classList.remove("hidden");
-        btnLoginOpen.classList.add("hidden");
-      } else {
-        userEmail.classList.add("hidden");
-        btnLogout.classList.add("hidden");
-        btnLoginOpen.classList.remove("hidden");
-      }
-    });
-
-    // 🔑 Auth actions
-    document.getElementById("btnLogin").onclick = async () => {
-      const email = document.getElementById("emailInput").value;
-      const pass = document.getElementById("passwordInput").value;
-      try {
-        await signInWithEmailAndPassword(auth, email, pass);
-        authModal.classList.add("hidden");
-      } catch (e) {
-        document.getElementById("authMsg").textContent = e.message;
-      }
-    };
-
-    document.getElementById("btnRegister").onclick = async () => {
-      const email = document.getElementById("emailInput").value;
-      const pass = document.getElementById("passwordInput").value;
-      try {
-        await createUserWithEmailAndPassword(auth, email, pass);
-        authModal.classList.add("hidden");
-      } catch (e) {
-        document.getElementById("authMsg").textContent = e.message;
-      }
-    };
-
-    btnLogout.onclick = () => signOut(auth);
-
-    // Open/close modal
-    btnLoginOpen.onclick = () => authModal.classList.remove("hidden");
-    document.getElementById("authClose").onclick = () => authModal.classList.add("hidden");
-  </script>
+  <!-- Firebase CDN -->
+  <script type="module" src="app.js"></script>
 </body>
 </html>
