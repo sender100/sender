@@ -1,116 +1,53 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Sender App - Image Upload</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Image Gallery (URL Only)</title>
 </head>
 <body>
-  <h2>Firebase Auth + Image Upload</h2>
+  <h2>Image Gallery (No Firebase Storage)</h2>
 
-  <!-- Signup/Login Section -->
-  <div>
-    <input type="email" id="email" placeholder="Email" />
-    <input type="password" id="password" placeholder="Password" />
-    <button id="signupBtn">Sign Up</button>
-    <button id="loginBtn">Login</button>
-    <button id="logoutBtn">Logout</button>
-  </div>
+  <!-- Input Section -->
+  <input type="text" id="imageUrl" placeholder="Paste Image URL here" size="50"/>
+  <button id="addBtn">Add Image</button>
 
-  <hr/>
-
-  <!-- Image Upload Section -->
-  <div id="uploadSection" style="display:none;">
-    <input type="file" id="fileInput"/>
-    <button id="uploadBtn">Upload</button>
-  </div>
-
-  <h3>Uploaded Images:</h3>
+  <h3>Gallery:</h3>
   <div id="gallery"></div>
 
-  <!-- Firebase SDK -->
-  <script type="module">
-    // Import Firebase SDKs
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
-    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged }
-      from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
-    import { getStorage, ref, uploadBytes, getDownloadURL }
-      from "https://www.gstatic.com/firebasejs/12.1.0/firebase-storage.js";
-
-    // 🔹 Your Firebase Config
-    const firebaseConfig = {
-      apiKey: "AIzaSyAG0o0WWhhjoadzHuYXDINnYp6-J2EqQcA",
-      authDomain: "sender-app-ee836.firebaseapp.com",
-      databaseURL: "https://sender-app-ee836-default-rtdb.firebaseio.com",
-      projectId: "sender-app-ee836",
-      storageBucket: "sender-app-ee836.appspot.com", // ✅ सही वाला storage bucket
-      messagingSenderId: "443769926283",
-      appId: "1:443769926283:web:f88516aed2c80b34c7da8e",
-      measurementId: "G-3ZZYRJFM39"
-    };
-
-    // Initialize Firebase
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const storage = getStorage(app);
-
-    // 🔹 Auth: Sign Up
-    document.getElementById("signupBtn").addEventListener("click", () => {
-      const email = document.getElementById("email").value;
-      const password = document.getElementById("password").value;
-      createUserWithEmailAndPassword(auth, email, password)
-        .then(userCredential => {
-          alert("Signup successful!");
-        })
-        .catch(error => {
-          alert(error.message);
-        });
-    });
-
-    // 🔹 Auth: Login
-    document.getElementById("loginBtn").addEventListener("click", () => {
-      const email = document.getElementById("email").value;
-      const password = document.getElementById("password").value;
-      signInWithEmailAndPassword(auth, email, password)
-        .then(userCredential => {
-          alert("Login successful!");
-        })
-        .catch(error => {
-          alert(error.message);
-        });
-    });
-
-    // 🔹 Auth: Logout
-    document.getElementById("logoutBtn").addEventListener("click", () => {
-      signOut(auth).then(() => {
-        alert("Logged out!");
-      });
-    });
-
-    // 🔹 Track Login Status
-    onAuthStateChanged(auth, (user) => {
-      if (user) {
-        document.getElementById("uploadSection").style.display = "block";
-      } else {
-        document.getElementById("uploadSection").style.display = "none";
-      }
-    });
-
-    // 🔹 Upload Image
-    document.getElementById("uploadBtn").addEventListener("click", () => {
-      const file = document.getElementById("fileInput").files[0];
-      if (!file) {
-        alert("Select a file first!");
+  <script>
+    document.getElementById("addBtn").addEventListener("click", () => {
+      const url = document.getElementById("imageUrl").value.trim();
+      if (!url) {
+        alert("Please paste a valid image URL!");
         return;
       }
 
-      const storageRef = ref(storage, "uploads/" + file.name);
+      // Create container for image + download button
+      const container = document.createElement("div");
+      container.style.margin = "10px";
 
-      uploadBytes(storageRef, file).then((snapshot) => {
-        getDownloadURL(snapshot.ref).then((url) => {
-          document.getElementById("gallery").innerHTML += `<img src="${url}" width="150" style="margin:5px"/>`;
-        });
-      });
+      // Image tag
+      const img = document.createElement("img");
+      img.src = url;
+      img.width = 150;
+      img.style.marginRight = "10px";
+
+      // Download button
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "image.jpg"; // default name
+      link.innerText = "Download";
+      link.style.display = "inline-block";
+      link.style.marginTop = "5px";
+
+      container.appendChild(img);
+      container.appendChild(link);
+
+      document.getElementById("gallery").appendChild(container);
+
+      // clear input
+      document.getElementById("imageUrl").value = "";
     });
   </script>
 </body>
