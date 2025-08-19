@@ -382,5 +382,30 @@
     }
     */
   </script>
+  <script>
+    import { getStorage, ref, uploadBytes, getDownloadURL } 
+  from "https://www.gstatic.com/firebasejs/12.1.0/firebase-storage.js";
+
+const storage = getStorage();
+
+document.getElementById("fileInput").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const storageRef = ref(storage, "uploads/" + file.name);
+
+  uploadBytes(storageRef, file).then((snapshot) => {
+    console.log("Uploaded:", file.name);
+
+    getDownloadURL(snapshot.ref).then((url) => {
+      console.log("Download URL:", url);
+      document.getElementById("gallery").innerHTML += 
+        `<img src="${url}" width="150"/>`;
+    });
+  });
+});
+
+  </script>
 </body>
 </html>
+
