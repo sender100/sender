@@ -7,6 +7,59 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<style>
+  body {
+  font-family: Arial, sans-serif;
+  background: #f4f4f4;
+  margin: 0;
+  padding: 20px;
+  text-align: center;
+}
+.card {
+  background: #fff;
+  padding: 20px;
+  margin: auto;
+  width: 300px;
+  border-radius: 12px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+input, button {
+  width: 90%;
+  padding: 10px;
+  margin: 8px 0;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+}
+button {
+  background: #007bff;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+}
+button:hover {
+  background: #0056b3;
+}
+.hidden {
+  display: none;
+}
+.upload-area {
+  margin: 20px 0;
+}
+#gallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
+#gallery img {
+  width: 150px;
+  height: 150px;
+  object-fit: cover;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+</style>
   <div id="auth-section" class="card">
     <h2>Login / Signup</h2>
     <input type="email" id="email" placeholder="Email" />
@@ -32,3 +85,4 @@
   <script type="module" src="app.js"></script>
 </body>
 </html>
+
