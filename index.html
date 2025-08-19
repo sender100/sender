@@ -2,183 +2,385 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Family Photo Vault</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f4f4f4;
-      margin: 0;
-      padding: 20px;
-      text-align: center;
-    }
-    .card {
-      background: #fff;
-      padding: 20px;
-      margin: auto;
-      width: 300px;
-      border-radius: 12px;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-    }
-    input, button {
-      width: 90%;
-      padding: 10px;
-      margin: 8px 0;
-      border-radius: 8px;
-      border: 1px solid #ccc;
-    }
-    button {
-      background: #007bff;
-      color: #fff;
-      border: none;
-      cursor: pointer;
-    }
-    button:hover { background: #0056b3; }
-    .hidden { display: none; }
-    .upload-area { margin: 20px 0; }
-    #gallery {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      justify-content: center;
-    }
-    #gallery img {
-      width: 150px;
-      height: 150px;
-      object-fit: cover;
-      border-radius: 8px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-      cursor: pointer;
-    }
+    body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji"; }
+    .glass { background: rgba(255,255,255,0.08); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.15); }
+    .btn { @apply px-4 py-2 rounded-2xl shadow transition active:scale-[.98]; }
+    .btn-primary { @apply bg-indigo-600 hover:bg-indigo-500 text-white; }
+    .btn-outline { @apply border border-white/30 hover:bg-white/10 text-white; }
+    .btn-danger { @apply bg-rose-600 hover:bg-rose-500 text-white; }
   </style>
 </head>
-<body>
-  <!-- Auth Section -->
-  <div id="auth-section" class="card">
-    <h2>Login / Signup</h2>
-    <input type="email" id="email" placeholder="Email" />
-    <input type="password" id="password" placeholder="Password" />
-    <button id="signupBtn">Sign Up</button>
-    <button id="loginBtn">Login</button>
-  </div>
-
-  <!-- App Section -->
-  <div id="app-section" class="hidden">
-    <h2>Welcome to Family Photo Vault</h2>
-    <button id="logoutBtn">Logout</button>
-
-    <div class="upload-area">
-      <input type="file" id="fileInput" accept="image/*" multiple />
-      <button id="uploadBtn">Upload</button>
+<body class="min-h-screen bg-gradient-to-br from-indigo-700 via-fuchsia-600 to-rose-600 text-white">
+  <!-- NAVBAR -->
+  <header class="sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="h-10 w-10 rounded-2xl bg-white/10 grid place-items-center">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9-4.03-9-9-9Zm4.95 12.54-3.2-3.99c-.38-.47-1.08-.53-1.53-.13l-2.02 1.74-1.22-1.46a1 1 0 0 0-1.68.17l-2.02 3.74a8 8 0 1 1 11.67-1.07Z"/></svg>
+        </div>
+        <h1 class="text-2xl font-extrabold tracking-tight">Family Photo Vault</h1>
+      </div>
+      <div class="flex items-center gap-3">
+        <span id="userEmail" class="text-sm opacity-90 hidden"></span>
+        <button id="btnLogout" class="btn btn-outline hidden">Logout</button>
+        <button id="btnLoginOpen" class="btn btn-primary">Login / Sign up</button>
+      </div>
     </div>
+  </header>
 
-    <h3>Your Gallery</h3>
-    <div id="gallery"></div>
+  <!-- HERO / INTRO -->
+  <section class="max-w-7xl mx-auto px-4 pt-10 pb-4">
+    <div class="glass rounded-3xl p-6 md:p-10 shadow-xl">
+      <div class="grid md:grid-cols-2 gap-8 items-center">
+        <div>
+          <h2 class="text-3xl md:text-4xl font-extrabold leading-tight">Secure, shared gallery for the whole family</h2>
+          <p class="mt-3 text-white/90">Upload, view, and manage memories in a private space. Only signed‑in family members can access your photos.</p>
+          <div class="mt-5 flex gap-3">
+            <button id="ctaUpload" class="btn btn-primary">Upload photos</button>
+            <a href="#gallery" class="btn btn-outline">View gallery</a>
+          </div>
+        </div>
+        <div class="grid grid-cols-3 gap-2 md:gap-3">
+          <div class="rounded-2xl overflow-hidden aspect-[4/5] bg-white/10"></div>
+          <div class="rounded-2xl overflow-hidden aspect-square bg-white/10"></div>
+          <div class="rounded-2xl overflow-hidden aspect-[3/4] bg-white/10"></div>
+          <div class="rounded-2xl overflow-hidden aspect-[3/4] bg-white/10"></div>
+          <div class="rounded-2xl overflow-hidden aspect-square bg-white/10"></div>
+          <div class="rounded-2xl overflow-hidden aspect-[4/5] bg-white/10"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- UPLOAD CARD -->
+  <section class="max-w-7xl mx-auto px-4 pt-6 pb-2">
+    <div class="glass rounded-3xl p-6 md:p-8">
+      <div class="flex items-center justify-between gap-4">
+        <div>
+          <h3 class="text-xl md:text-2xl font-bold">Upload images</h3>
+          <p class="text-white/80 text-sm">Accepted: JPG, PNG, WEBP, HEIC • Max ~10MB/file</p>
+        </div>
+        <div class="flex gap-2">
+          <select id="memberSelect" class="rounded-2xl bg-white/10 border border-white/20 px-3 py-2 text-sm">
+            <option value="shared">Shared Album</option>
+            <option>Dad</option>
+            <option>Mom</option>
+            <option>Kids</option>
+            <option>Grandparents</option>
+          </select>
+          <button id="btnPickFiles" class="btn btn-primary">Choose files</button>
+          <input id="fileInput" type="file" accept="image/*" multiple class="hidden" />
+        </div>
+      </div>
+
+      <div id="dropZone" class="mt-4 rounded-2xl border-2 border-dashed border-white/30 bg-white/5 p-6 text-center">
+        <p class="font-medium">Drag & drop photos here</p>
+        <p class="text-sm text-white/80">or click “Choose files”</p>
+      </div>
+
+      <div id="queue" class="mt-4 grid sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+      <div id="uploadStatus" class="mt-3 text-sm"></div>
+    </div>
+  </section>
+
+  <!-- GALLERY -->
+  <section id="gallery" class="max-w-7xl mx-auto px-4 pt-6 pb-20">
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="text-xl md:text-2xl font-bold">Gallery</h3>
+      <div class="flex gap-2 items-center">
+        <select id="filterSelect" class="rounded-2xl bg-white/10 border border-white/20 px-3 py-2 text-sm">
+          <option value="all">All</option>
+          <option value="shared">Shared Album</option>
+          <option>Dad</option>
+          <option>Mom</option>
+          <option>Kids</option>
+          <option>Grandparents</option>
+        </select>
+        <button id="refreshBtn" class="btn btn-outline">Refresh</button>
+      </div>
+    </div>
+    <div id="galleryGrid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3"></div>
+    <p id="emptyState" class="text-white/80 text-center mt-6 hidden">No photos yet. Upload some memories! 🥰</p>
+  </section>
+
+  <!-- AUTH MODAL -->
+  <div id="authModal" class="fixed inset-0 hidden items-center justify-center bg-black/60 p-4">
+    <div class="w-full max-w-md glass rounded-3xl p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-xl font-bold">Sign in / Create account</h3>
+        <button id="authClose" class="btn btn-outline">Close</button>
+      </div>
+      <div class="grid gap-3">
+        <input id="emailInput" type="email" placeholder="Email" class="w-full rounded-2xl bg-white/10 border border-white/20 px-4 py-3"/>
+        <input id="passwordInput" type="password" placeholder="Password (min 6 chars)" class="w-full rounded-2xl bg-white/10 border border-white/20 px-4 py-3"/>
+        <div class="flex gap-2">
+          <button id="btnLogin" class="btn btn-primary w-full">Login</button>
+          <button id="btnRegister" class="btn btn-outline w-full">Register</button>
+        </div>
+        <p id="authMsg" class="text-sm text-white/90"></p>
+      </div>
+      <p class="mt-4 text-xs text-white/70">By continuing you agree this private site is for family only. Keep your password safe.</p>
+    </div>
   </div>
 
-  <!-- Firebase SDKs -->
+  <!-- TOAST -->
+  <div id="toast" class="fixed bottom-4 left-1/2 -translate-x-1/2 hidden px-4 py-2 rounded-2xl glass"></div>
+
+  <!-- Firebase SDK (Modular CDN) -->
   <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
-    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
-    import { getStorage, ref, uploadBytes, getDownloadURL, listAll, deleteObject } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-storage.js";
+    // ======== 1) Firebase Setup ========
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { getStorage, ref, uploadBytes, getDownloadURL, listAll, deleteObject } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
-    // ✅ Your Firebase Config
-    const firebaseConfig = {
-      apiKey: "AIzaSyAG0o0WWhhjoadzHuYXDINnYp6-J2EqQcA",
-      authDomain: "sender-app-ee836.firebaseapp.com",
-      databaseURL: "https://sender-app-ee836-default-rtdb.firebaseio.com",
-      projectId: "sender-app-ee836",
-      storageBucket: "sender-app-ee836.appspot.com",   // ✅ FIXED
-      messagingSenderId: "443769926283",
-      appId: "1:443769926283:web:f88516aed2c80b34c7da8e",
-      measurementId: "G-3ZZYRJFM39"
-    };
+   const firebaseConfig = {
+  apiKey: "AIzaSyAG0o0WWhhjoadzHuYXDINnYp6-J2EqQcA",   // ✅ यही तेरा API Key है
+  authDomain: "sender-app-ee836.firebaseapp.com",
+  databaseURL: "https://sender-app-ee836-default-rtdb.firebaseio.com",
+  projectId: "sender-app-ee836",
+  storageBucket: "sender-app-ee836.appspot.com",      // ✅ ध्यान रहे appspot.com होना चाहिए
+  messagingSenderId: "443769926283",
+  appId: "1:443769926283:web:f88516aed2c80b34c7da8e",
+  measurementId: "G-3ZZYRJFM39"
+};
 
-    // ✅ Initialize Firebase
+
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const storage = getStorage(app);
 
-    // DOM Elements
-    const authSection = document.getElementById("auth-section");
-    const appSection = document.getElementById("app-section");
-    const signupBtn = document.getElementById("signupBtn");
-    const loginBtn = document.getElementById("loginBtn");
-    const logoutBtn = document.getElementById("logoutBtn");
-    const uploadBtn = document.getElementById("uploadBtn");
-    const fileInput = document.getElementById("fileInput");
-    const gallery = document.getElementById("gallery");
+    // ======== 2) UI Helpers ========
+    const $ = (sel) => document.querySelector(sel);
+    const $$ = (sel) => document.querySelectorAll(sel);
+    const toast = (msg) => { const t = $('#toast'); t.textContent = msg; t.classList.remove('hidden'); setTimeout(()=>t.classList.add('hidden'), 2200); };
 
-    // Signup
-    signupBtn.addEventListener("click", () => {
-      const email = document.getElementById("email").value;
-      const password = document.getElementById("password").value;
-      createUserWithEmailAndPassword(auth, email, password)
-        .then(() => alert("Signup successful!"))
-        .catch(err => alert(err.message));
-    });
+    const authModal = $('#authModal');
+    const userEmailEl = $('#userEmail');
+    const btnLogout = $('#btnLogout');
+    const btnLoginOpen = $('#btnLoginOpen');
+    const ctaUpload = $('#ctaUpload');
 
-    // Login
-    loginBtn.addEventListener("click", () => {
-      const email = document.getElementById("email").value;
-      const password = document.getElementById("password").value;
-      signInWithEmailAndPassword(auth, email, password)
-        .catch(err => alert(err.message));
-    });
+    // ======== 3) Auth Flow ========
+    const openAuth = () => authModal.classList.remove('hidden');
+    const closeAuth = () => authModal.classList.add('hidden');
 
-    // Logout
-    logoutBtn.addEventListener("click", () => { signOut(auth); });
+    btnLoginOpen.addEventListener('click', openAuth);
+    $('#authClose').addEventListener('click', closeAuth);
 
-    // Auth state change
-    onAuthStateChanged(auth, (user) => {
-      if (user) {
-        authSection.classList.add("hidden");
-        appSection.classList.remove("hidden");
-        loadGallery(user.uid);
-      } else {
-        authSection.classList.remove("hidden");
-        appSection.classList.add("hidden");
-        gallery.innerHTML = "";
+    $('#btnLogin').addEventListener('click', async () => {
+      const email = $('#emailInput').value.trim();
+      const pass = $('#passwordInput').value.trim();
+      try {
+        await signInWithEmailAndPassword(auth, email, pass);
+        $('#authMsg').textContent = '';
+        closeAuth();
+        toast('Logged in ✔');
+      } catch (e) {
+        $('#authMsg').textContent = e.message;
       }
     });
 
-    // Upload
-    uploadBtn.addEventListener("click", () => {
-      const files = fileInput.files;
-      if (files.length === 0) return alert("Please select files");
-      const user = auth.currentUser;
-      Array.from(files).forEach(file => {
-        const storageRef = ref(storage, `${user.uid}/${file.name}`);
-        uploadBytes(storageRef, file).then(() => {
-          alert("Uploaded: " + file.name);
-          loadGallery(user.uid);
-        });
-      });
+    $('#btnRegister').addEventListener('click', async () => {
+      const email = $('#emailInput').value.trim();
+      const pass = $('#passwordInput').value.trim();
+      try {
+        await createUserWithEmailAndPassword(auth, email, pass);
+        $('#authMsg').textContent = 'Account created. You can upload now!';
+        toast('Welcome to the family ✨');
+      } catch (e) {
+        $('#authMsg').textContent = e.message;
+      }
     });
 
-    // Load Gallery
-    function loadGallery(uid) {
-      const listRef = ref(storage, uid + "/");
-      gallery.innerHTML = "";
-      listAll(listRef).then(res => {
-        res.items.forEach(itemRef => {
-          getDownloadURL(itemRef).then(url => {
-            const img = document.createElement("img");
-            img.src = url;
-            img.title = itemRef.name;
-            img.addEventListener("click", () => {
-              if (confirm("Delete this photo?")) {
-                deleteObject(itemRef).then(() => {
-                  alert("Deleted " + itemRef.name);
-                  loadGallery(uid);
-                });
-              }
-            });
-            gallery.appendChild(img);
-          });
+    btnLogout.addEventListener('click', async () => {
+      await signOut(auth);
+      toast('Logged out');
+    });
+
+    onAuthStateChanged(auth, (user) => {
+      const authed = !!user;
+      userEmailEl.classList.toggle('hidden', !authed);
+      btnLogout.classList.toggle('hidden', !authed);
+      btnLoginOpen.classList.toggle('hidden', authed);
+      userEmailEl.textContent = authed ? user.email : '';
+      // After auth change, refresh gallery
+      loadGallery();
+    });
+
+    // ======== 4) Upload Handling ========
+    const dropZone = $('#dropZone');
+    const fileInput = $('#fileInput');
+    const btnPickFiles = $('#btnPickFiles');
+    const queue = $('#queue');
+    const uploadStatus = $('#uploadStatus');
+
+    const ALLOWED = ["image/jpeg","image/png","image/webp","image/heic","image/heif"]; // some browsers map HEIC differently
+    const MAX_MB = 12;
+
+    const filesQueue = [];
+
+    const addFiles = (files) => {
+      for (const f of files) {
+        if (!ALLOWED.some(t => f.type.includes(t.split('/')[1]) || f.type === t)) { toast('Unsupported file: ' + f.name); continue; }
+        if (f.size > MAX_MB * 1024 * 1024) { toast(`Too large (> ${MAX_MB} MB): ${f.name}`); continue; }
+        filesQueue.push(f);
+      }
+      renderQueue();
+    };
+
+    const renderQueue = () => {
+      queue.innerHTML = '';
+      filesQueue.forEach((f, idx) => {
+        const item = document.createElement('div');
+        item.className = 'glass rounded-2xl p-3 flex items-center gap-3';
+        item.innerHTML = `
+          <div class="w-12 h-12 bg-white/10 rounded-xl overflow-hidden grid place-items-center">
+            <img class="w-full h-full object-cover hidden" id="thumb-${idx}">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 opacity-70" viewBox="0 0 24 24" fill="currentColor"><path d="M12 5.5 6 9v6l6 3.5 6-3.5V9l-6-3.5Zm0 1.15L16.74 9 12 11.35 7.26 9 12 6.65Zm-4.74 4.1 4.74 2.35 4.74-2.35v3.5L12 16.6 7.26 13.15v-3.4Z"/></svg>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="truncate font-medium">${f.name}</p>
+            <div class="w-full h-2 bg-white/10 rounded-full mt-1 overflow-hidden"><div id="bar-${idx}" class="h-full w-0 bg-white/70"></div></div>
+          </div>
+          <button data-rm="${idx}" class="btn btn-outline">Remove</button>
+        `;
+        item.querySelector('[data-rm]').addEventListener('click', (e)=>{
+          filesQueue.splice(idx,1); renderQueue();
         });
+        // preview
+        const reader = new FileReader();
+        reader.onload = ev => { const img = item.querySelector('#thumb-'+idx); img.src = ev.target.result; img.classList.remove('hidden'); };
+        reader.readAsDataURL(f);
+        queue.appendChild(item);
       });
+      uploadStatus.textContent = filesQueue.length ? `${filesQueue.length} file(s) ready` : '';
+    };
+
+    ;['dragenter','dragover'].forEach(evt => dropZone.addEventListener(evt, e=>{ e.preventDefault(); dropZone.classList.add('ring-2','ring-white'); }));
+    ;['dragleave','drop'].forEach(evt => dropZone.addEventListener(evt, e=>{ e.preventDefault(); dropZone.classList.remove('ring-2','ring-white'); }));
+    dropZone.addEventListener('drop', (e)=>{ addFiles(e.dataTransfer.files); });
+    btnPickFiles.addEventListener('click', ()=> fileInput.click());
+    ctaUpload.addEventListener('click', ()=> fileInput.click());
+    fileInput.addEventListener('change', (e)=> addFiles(e.target.files));
+
+    async function uploadAll() {
+      if (!auth.currentUser) { openAuth(); return; }
+      if (!filesQueue.length) { toast('No files selected'); return; }
+
+      const member = $('#memberSelect').value || 'shared';
+      let done = 0;
+      for (let i=0; i<filesQueue.length; i++) {
+        const f = filesQueue[i];
+        const path = `family_images/${member}/${Date.now()}-${f.name}`;
+        const storageRef = ref(storage, path);
+        await uploadBytes(storageRef, f);
+        // Fake progress bar fill to 100%
+        const bar = document.getElementById('bar-'+i); if (bar) bar.style.width = '100%';
+        done++;
+      }
+      filesQueue.length = 0; renderQueue();
+      toast(`Uploaded ${done} photo(s)`);
+      await loadGallery();
     }
+
+    dropZone.addEventListener('dblclick', uploadAll);
+    $('#uploadStatus').insertAdjacentHTML('beforeend', ' <button id="btnStartUpload" class="ml-2 btn btn-primary">Start upload</button>');
+    $('#btnStartUpload').addEventListener('click', uploadAll);
+
+    // ======== 5) Gallery ========
+    const galleryGrid = $('#galleryGrid');
+    const emptyState = $('#emptyState');
+
+    async function listFolder(path) {
+      const listRef = ref(storage, path);
+      try {
+        const res = await listAll(listRef);
+        return res.items;
+      } catch (e) {
+        // If folder missing, return empty
+        return [];
+      }
+    }
+
+    async function loadGallery() {
+      galleryGrid.innerHTML = '';
+      const filter = $('#filterSelect').value;
+
+      const roots = filter === 'all' ? ['shared','Dad','Mom','Kids','Grandparents'] : [filter];
+      let items = [];
+      for (const r of roots) {
+        const arr = await listFolder(`family_images/${r}`);
+        items = items.concat(arr);
+      }
+
+      if (!items.length) { emptyState.classList.remove('hidden'); return; } else { emptyState.classList.add('hidden'); }
+
+      // Sort by name (timestamp prefix) desc
+      items.sort((a,b)=> b.name.localeCompare(a.name));
+
+      for (const itemRef of items) {
+        const url = await getDownloadURL(itemRef);
+        const card = document.createElement('div');
+        card.className = 'group relative overflow-hidden rounded-2xl glass';
+        card.innerHTML = `
+          <img src="${url}" class="w-full h-56 object-cover" loading="lazy" />
+          <div class="absolute inset-0 opacity-0 group-hover:opacity-100 transition bg-black/40 p-3 flex flex-col justify-end">
+            <div class="flex gap-2">
+              <a href="${url}" target="_blank" class="btn btn-outline">Open</a>
+              <button class="btn btn-primary" data-copy>Copy link</button>
+              <button class="btn btn-danger" data-del>Delete</button>
+            </div>
+          </div>
+        `;
+        card.querySelector('[data-copy]').addEventListener('click', async ()=>{
+          await navigator.clipboard.writeText(url); toast('Link copied');
+        });
+        card.querySelector('[data-del]').addEventListener('click', async ()=>{
+          if (!auth.currentUser) { openAuth(); return; }
+          if (!confirm('Delete this photo?')) return;
+          try { await deleteObject(itemRef); toast('Deleted'); card.remove(); } catch(e){ toast('Delete failed'); }
+        });
+        galleryGrid.appendChild(card);
+      }
+    }
+
+    $('#refreshBtn').addEventListener('click', loadGallery);
+    $('#filterSelect').addEventListener('change', loadGallery);
+
+    // Initial load
+    loadGallery();
+
+    // ======== 6) Security Notes (IMPORTANT) ========
+    /*
+    In Firebase Console → Storage → Rules, set at minimum:
+
+    rules_version = '2';
+    service firebase.storage {
+      match /b/{bucket}/o {
+        match /family_images/{allPaths=**} {
+          allow read, write: if request.auth != null; // only signed-in users
+        }
+      }
+    }
+
+    For per-user private libraries, store at: users/{uid}/... and use rules:
+
+    rules_version = '2';
+    service firebase.storage {
+      match /b/{bucket}/o {
+        match /users/{uid}/{allPaths=**} {
+          allow read, write: if request.auth != null && request.auth.uid == uid;
+        }
+      }
+    }
+    */
   </script>
 </body>
 </html>
