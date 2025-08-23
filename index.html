@@ -2,53 +2,101 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Image Gallery (URL Only)</title>
+  <title>Realtime Data Sender/Receiver</title>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css"></script>
 </head>
-<body>
-  <h2>Image Gallery (No Firebase Storage)</h2>
+<body class="bg-gradient-to-r from-purple-500 to-indigo-600 min-h-screen flex items-center justify-center p-4">
 
-  <!-- Input Section -->
-  <input type="text" id="imageUrl" placeholder="Paste Image URL here" size="50"/>
-  <button id="addBtn">Add Image</button>
+  <div class="bg-white shadow-2xl rounded-2xl w-full max-w-4xl p-8 animate__animated animate__fadeIn">
+    <h1 class="text-3xl font-bold text-center text-indigo-700 mb-8">⚡ Realtime Data Share</h1>
 
-  <h3>Gallery:</h3>
-  <div id="gallery"></div>
+    <div class="grid md:grid-cols-2 gap-8">
+
+      <!-- Sender Section -->
+      <div class="p-6 border rounded-xl shadow hover:shadow-lg transition">
+        <h2 class="text-xl font-semibold text-purple-600 mb-4">📤 Sender</h2>
+        <input type="text" id="senderId" placeholder="Enter Custom ID" class="w-full border rounded p-2 mb-4">
+        <input type="file" id="fileInput" class="w-full mb-4">
+        <button onclick="sendData()" class="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-lg font-semibold transition">Send</button>
+        <p id="sendStatus" class="mt-3 text-sm text-gray-600"></p>
+      </div>
+
+      <!-- Receiver Section -->
+      <div class="p-6 border rounded-xl shadow hover:shadow-lg transition">
+        <h2 class="text-xl font-semibold text-green-600 mb-4">📥 Receiver</h2>
+        <input type="text" id="receiverId" placeholder="Enter ID to Receive" class="w-full border rounded p-2 mb-4">
+        <button onclick="receiveData()" class="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg font-semibold transition">Open</button>
+        <div id="receiveBox" class="mt-4"></div>
+      </div>
+
+    </div>
+  </div>
 
   <script>
-    document.getElementById("addBtn").addEventListener("click", () => {
-      const url = document.getElementById("imageUrl").value.trim();
-      if (!url) {
-        alert("Please paste a valid image URL!");
+    // Firebase Config
+    const firebaseConfig = {
+      apiKey: "AIzaSyCORHcQUhCy3baKfG9znXHoQygNxgECNMo",
+      authDomain: "sender-d6c0a.firebaseapp.com",
+      projectId: "sender-d6c0a",
+      storageBucket: "sender-d6c0a.firebasestorage.app",
+      messagingSenderId: "19479079444",
+      appId: "1:19479079444:web:4b5e80bd20d6d07d73d501",
+      measurementId: "G-PBPGRJ0JEY",
+      databaseURL: "https://sender-d6c0a-default-rtdb.firebaseio.com/"
+    };
+
+    // Initialize Firebase
+    const app = firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // Send Data
+    function sendData() {
+      const id = document.getElementById("senderId").value.trim();
+      const file = document.getElementById("fileInput").files[0];
+      if (!id || !file) {
+        alert("Please enter ID and choose a file!");
         return;
       }
 
-      // Create container for image + download button
-      const container = document.createElement("div");
-      container.style.margin = "10px";
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const base64Data = e.target.result;
+        db.ref("files/" + id).set({
+          name: file.name,
+          data: base64Data,
+          time: new Date().toLocaleString()
+        }).then(() => {
+          document.getElementById("sendStatus").innerText = "✅ File sent successfully with ID: " + id;
+        });
+      };
+      reader.readAsDataURL(file);
+    }
 
-      // Image tag
-      const img = document.createElement("img");
-      img.src = url;
-      img.width = 150;
-      img.style.marginRight = "10px";
-
-      // Download button
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = "image.jpg"; // default name
-      link.innerText = "Download";
-      link.style.display = "inline-block";
-      link.style.marginTop = "5px";
-
-      container.appendChild(img);
-      container.appendChild(link);
-
-      document.getElementById("gallery").appendChild(container);
-
-      // clear input
-      document.getElementById("imageUrl").value = "";
-    });
+    // Receive Data
+    function receiveData() {
+      const id = document.getElementById("receiverId").value.trim();
+      if (!id) {
+        alert("Please enter an ID to receive data!");
+        return;
+      }
+      db.ref("files/" + id).once("value").then(snapshot => {
+        const data = snapshot.val();
+        if (data) {
+          const box = document.getElementById("receiveBox");
+          box.innerHTML = `
+            <p class="text-gray-700 mb-2">📄 File: <b>${data.name}</b></p>
+            <p class="text-sm text-gray-500 mb-2">⏱ Sent: ${data.time}</p>
+            <a href="${data.data}" download="${data.name}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg inline-block">⬇ Download</a>
+          `;
+        } else {
+          document.getElementById("receiveBox").innerHTML = "<p class='text-red-500'>❌ No file found for this ID</p>";
+        }
+      });
+    }
   </script>
+
 </body>
 </html>
