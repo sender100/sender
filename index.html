@@ -3,14 +3,92 @@
 <head>
   <meta charset="UTF-8">
   <title>Realtime Data Sender/Receiver</title>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js"></script>
+  <script type="module">
+    // Import Firebase SDK (Modular)
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getDatabase, ref, set, get, child } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+    // Firebase Config
+    const firebaseConfig = {
+      apiKey: "AIzaSyCORHcQUhCy3baKfG9znXHoQygNxgECNMo",
+      authDomain: "sender-d6c0a.firebaseapp.com",
+      projectId: "sender-d6c0a",
+      storageBucket: "sender-d6c0a.appspot.com",
+      messagingSenderId: "19479079444",
+      appId: "1:19479079444:web:4b5e80bd20d6d07d73d501",
+      measurementId: "G-PBPGRJ0JEY",
+      databaseURL: "https://sender-d6c0a-default-rtdb.firebaseio.com/"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    // ✅ Send Data
+    window.sendData = function () {
+      const id = document.getElementById("senderId").value.trim();
+      const file = document.getElementById("fileInput").files[0];
+      if (!id || !file) {
+        alert("⚠️ Please enter ID and choose a file!");
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        const base64Data = e.target.result;
+        set(ref(db, "files/" + id), {
+          name: file.name,
+          type: file.type,
+          data: base64Data,
+          time: new Date().toLocaleString()
+        }).then(() => {
+          document.getElementById("sendStatus").innerText = "✅ File sent successfully with ID: " + id;
+        }).catch(err => {
+          document.getElementById("sendStatus").innerText = "❌ Error: " + err;
+        });
+      };
+      reader.readAsDataURL(file);
+    };
+
+    // ✅ Receive Data
+    window.receiveData = function () {
+      const id = document.getElementById("receiverId").value.trim();
+      if (!id) {
+        alert("⚠️ Please enter an ID to receive data!");
+        return;
+      }
+
+      const dbRef = ref(db);
+      get(child(dbRef, "files/" + id)).then(snapshot => {
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          const box = document.getElementById("receiveBox");
+
+          let preview = "";
+          if (data.type.startsWith("image/")) {
+            preview = `<img src="${data.data}" class="mt-2 rounded shadow max-h-48">`;
+          }
+
+          box.innerHTML = `
+            <p class="text-gray-700 mb-2">📄 File: <b>${data.name}</b></p>
+            <p class="text-sm text-gray-500 mb-2">⏱ Sent: ${data.time}</p>
+            ${preview}
+            <a href="${data.data}" download="${data.name}" class="mt-3 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg inline-block">⬇ Download</a>
+          `;
+        } else {
+          document.getElementById("receiveBox").innerHTML = "<p class='text-red-500'>❌ No file found for this ID</p>";
+        }
+      }).catch(err => {
+        document.getElementById("receiveBox").innerHTML = "<p class='text-red-500'>⚠️ Error: " + err + "</p>";
+      });
+    };
+  </script>
+
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" rel="stylesheet">
 </head>
 <body class="bg-gradient-to-r from-purple-500 to-indigo-600 min-h-screen flex items-center justify-center p-4">
 
-  <div class="bg-white shadow-2xl rounded-2xl w-full max-w-5xl p-8 animate__animated animate__fadeIn">
+  <div class="bg-white shadow-2xl rounded-2xl w-full max-w-4xl p-8">
     <h1 class="text-3xl font-bold text-center text-indigo-700 mb-8">⚡ Realtime Data Share</h1>
 
     <div class="grid md:grid-cols-2 gap-8">
@@ -34,92 +112,6 @@
 
     </div>
   </div>
-
-  <script>
-    // Firebase Config
-    const firebaseConfig = {
-      apiKey: "AIzaSyCORHcQUhCy3baKfG9znXHoQygNxgECNMo",
-      authDomain: "sender-d6c0a.firebaseapp.com",
-      projectId: "sender-d6c0a",
-      storageBucket: "sender-d6c0a.appspot.com",
-      messagingSenderId: "19479079444",
-      appId: "1:19479079444:web:4b5e80bd20d6d07d73d501",
-      measurementId: "G-PBPGRJ0JEY",
-      databaseURL: "https://sender-d6c0a-default-rtdb.firebaseio.com/"
-    };
-
-    // Initialize Firebase
-    const app = firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-
-    // Send Data
-    function sendData() {
-      const id = document.getElementById("senderId").value.trim();
-      const file = document.getElementById("fileInput").files[0];
-      if (!id || !file) {
-        alert("⚠️ Please enter ID and choose a file!");
-        return;
-      }
-
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        const base64Data = e.target.result;
-        db.ref("files/" + id).set({
-          name: file.name,
-          type: file.type,
-          data: base64Data,
-          time: new Date().toLocaleString()
-        }).then(() => {
-          document.getElementById("sendStatus").innerHTML = `✅ File sent successfully with ID: <b>${id}</b> 
-            <button onclick="copyId('${id}')" class="ml-2 bg-gray-200 px-2 py-1 rounded text-xs">📋 Copy</button>`;
-        }).catch(err => {
-          document.getElementById("sendStatus").innerText = "❌ Error sending file: " + err;
-        });
-      };
-      reader.readAsDataURL(file);
-    }
-
-    // Copy ID Function
-    function copyId(id) {
-      navigator.clipboard.writeText(id);
-      alert("📋 ID copied: " + id);
-    }
-
-    // Receive Data
-    function receiveData() {
-      const id = document.getElementById("receiverId").value.trim();
-      if (!id) {
-        alert("⚠️ Please enter an ID to receive data!");
-        return;
-      }
-
-      const box = document.getElementById("receiveBox");
-      box.innerHTML = "<p class='text-gray-500 animate__animated animate__pulse'>⏳ Fetching data...</p>";
-
-      db.ref("files/" + id).once("value").then(snapshot => {
-        const data = snapshot.val();
-        if (data) {
-          let preview = "";
-          if (data.type.startsWith("image/")) {
-            preview = `<img src="${data.data}" alt="preview" class="mt-2 rounded shadow max-h-48">`;
-          } else if (data.type.startsWith("text/") || data.type === "application/json") {
-            preview = `<iframe src="${data.data}" class="mt-2 w-full h-40 border rounded"></iframe>`;
-          }
-
-          box.innerHTML = `
-            <p class="text-gray-700 mb-2">📄 File: <b>${data.name}</b></p>
-            <p class="text-sm text-gray-500 mb-2">⏱ Sent: ${data.time}</p>
-            ${preview}
-            <a href="${data.data}" download="${data.name}" class="mt-3 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg inline-block">⬇ Download</a>
-          `;
-        } else {
-          box.innerHTML = "<p class='text-red-500'>❌ No file found for this ID</p>";
-        }
-      }).catch(err => {
-        box.innerHTML = "<p class='text-red-500'>⚠️ Error: " + err + "</p>";
-      });
-    }
-  </script>
 
 </body>
 </html>
